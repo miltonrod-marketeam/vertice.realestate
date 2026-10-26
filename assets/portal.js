@@ -105,7 +105,7 @@
           <p class="num text-[11px] opacity-75">${E(i.ref)} · ${E(V.zona(i.zona))}</p>
           <h2 class="font-display text-[28px] font-semibold leading-tight mt-1">${E(i.titulo)}</h2>
           <div class="flex items-end justify-between gap-3 mt-4">
-            <div><p class="text-[11px] opacity-70">Inversión</p><p class="font-display text-3xl font-semibold leading-none" style="color:#FF8A62">${V.mxn(i.precioMxn)}<span class="text-xs font-sans opacity-80"> MXN</span></p></div>
+            <div><p class="text-[11px] opacity-70">Inversión</p><p class="fig text-3xl leading-none" style="color:#FF8A62">${V.mxn(i.precioMxn)}<span class="text-xs font-sans opacity-80"> MXN</span></p></div>
             <span class="btn btn-primary btn-sm">Ver ficha →</span>
           </div>
         </div>
@@ -137,7 +137,7 @@
     if (key === statsKey) return; statsKey = key;
     $('#statsRow').innerHTML = items.map((x, k) => `<div class="stat reveal d${k % 4}" style="--c:var(--${x.c})">
       <span class="stat-ico">${V.icon(x.ico, 18)}</span>
-      <p class="font-display text-[34px] sm:text-5xl font-semibold leading-none mt-5" style="color:rgb(var(--c))">${x.txt ? E(x.txt) : `<span data-count="${x.n}" data-dec="${x.dec}" data-suf="${E(x.suf)}">${E(x.n.toLocaleString('es-MX', { minimumFractionDigits: x.dec, maximumFractionDigits: x.dec }) + x.suf)}</span>`}</p>
+      <p class="fig text-[36px] sm:text-5xl leading-none mt-5" style="color:rgb(var(--c))">${x.txt ? E(x.txt) : `<span data-count="${x.n}" data-dec="${x.dec}" data-suf="${E(x.suf)}">${E(x.n.toLocaleString('es-MX', { minimumFractionDigits: x.dec, maximumFractionDigits: x.dec }) + x.suf)}</span>`}</p>
       <p class="font-semibold mt-3 text-[14px]">${E(x.t)}</p><p class="text-[12.5px] text-muted mt-0.5">${E(x.sub)}</p></div>`).join('');
     countUp($('#statsRow'));
   }
@@ -171,7 +171,7 @@
     if (st.zona !== 'todas') chips.push(['zona', 'Zona: ' + V.zona(st.zona)]);
     if (st.rango !== 'todos') chips.push(['rango', 'Inversión: ' + ($('#heroRango').selectedOptions[0]?.text || st.rango)]);
     if (st.q) chips.push(['q', 'Búsqueda: ' + st.q]);
-    const tile = (v, t, cc) => `<div class="rounded-2xl border border-line bg-surface/80 backdrop-blur p-4"><p class="font-display text-2xl sm:text-3xl font-semibold leading-none" style="color:rgb(var(--${cc}))">${E(v)}</p><p class="text-[12px] text-muted mt-2">${E(t)}</p></div>`;
+    const tile = (v, t, cc) => `<div class="rounded-2xl border border-line bg-surface/80 backdrop-blur p-4"><p class="fig text-2xl sm:text-3xl leading-none" style="color:rgb(var(--${cc}))">${E(v)}</p><p class="text-[12px] text-muted mt-2">${E(t)}</p></div>`;
     $('#catHead').innerHTML = `<div class="swap relative card overflow-hidden p-7 sm:p-10" style="--c:var(--${c})">
       <span class="absolute inset-x-0 top-0 h-1.5" style="background:linear-gradient(90deg,rgb(var(--c)),rgb(var(--c)/.15))"></span>
       <span class="absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full pointer-events-none" style="background:radial-gradient(closest-side,rgb(var(--c)/.26),transparent)"></span>
@@ -220,7 +220,7 @@
           <h3 class="font-display text-2xl font-semibold mt-5 leading-tight">${E(nombre)}</h3>
           <p class="text-[14px] text-muted mt-3 leading-relaxed">${E(z.txt)}</p></div>
         <div class="relative mt-auto pt-7 flex items-end justify-between gap-3">
-          <div><p class="font-display text-5xl font-semibold leading-none" style="color:rgb(var(--c))">${n}</p><p class="text-[12px] text-muted mt-1">${n === 1 ? 'inmueble' : 'inmuebles'}</p></div>
+          <div><p class="fig text-5xl leading-none" style="color:rgb(var(--c))">${n}</p><p class="text-[12px] text-muted mt-1">${n === 1 ? 'inmueble' : 'inmuebles'}</p></div>
           <div class="text-right"><p class="num text-[13px] font-semibold">${n ? V.compact(desde) + ' MXN' : 'Próximamente'}</p><p class="text-[12px] text-muted">${n ? 'inversión desde' : 'sin piezas hoy'}</p></div>
         </div>
         <span class="zona-cta">Ver piezas →</span></a>`;

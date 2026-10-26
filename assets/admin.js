@@ -57,7 +57,7 @@
         <div class="topo" id="panelTopo" style="opacity:.9"></div>
         <div class="relative">
           <p class="eyebrow">Valor de la cartera activa</p>
-          <p class="font-display text-5xl sm:text-7xl font-semibold mt-4 leading-none break-words">${V.mxn(valor)}<span class="text-base font-sans font-medium text-muted"> MXN</span></p>
+          <p class="fig text-5xl sm:text-7xl mt-4 leading-none break-words">${V.mxn(valor)}<span class="text-base font-sans font-medium text-muted"> MXN</span></p>
           <p class="num text-sm text-muted mt-3">≈ ${V.usd(valor)} · tipo de cambio referencial ${D.config.tipoCambio}</p>
           <div class="flex h-3 rounded-full overflow-hidden gap-0.5 mt-8" role="img" aria-label="Composición de la cartera por valor">
             ${cats.map((c) => `<div style="width:${(c.v / valor) * 100}%;background:rgb(var(--${CATCOL[c.k]}))" title="${E(V.CAT[c.k].corto)}"></div>`).join('')}
@@ -75,7 +75,7 @@
 
     <div class="grid grid-cols-2 lg:grid-cols-4 border-y border-line">
       ${[[String(act.length), 'inmuebles activos', 'ember'], [ha.toLocaleString('es-MX', { maximumFractionDigits: 2 }) + ' ha', 'superficie administrada', 'tide'], [V.compact(ticket), 'ticket promedio', 'moss'], ['▲ ' + plus.toFixed(0) + '%', 'plusvalía de zona (est.)', 'ochre']]
-        .map(([n, t, c]) => `<div class="py-6 px-4 sm:px-8 first:pl-0 border-l border-line first:border-0 [&:nth-child(3)]:border-l-0 lg:[&:nth-child(3)]:border-l"><p class="font-display text-3xl sm:text-4xl font-semibold leading-none" style="color:rgb(var(--${c}))">${E(n)}</p><p class="text-sm text-muted mt-2">${E(t)}</p></div>`).join('')}
+        .map(([n, t, c]) => `<div class="py-6 px-4 sm:px-8 first:pl-0 border-l border-line first:border-0 [&:nth-child(3)]:border-l-0 lg:[&:nth-child(3)]:border-l"><p class="fig text-3xl sm:text-4xl leading-none" style="color:rgb(var(--${c}))">${E(n)}</p><p class="text-sm text-muted mt-2">${E(t)}</p></div>`).join('')}
     </div>
 
     <div class="grid xl:grid-cols-2 gap-6">

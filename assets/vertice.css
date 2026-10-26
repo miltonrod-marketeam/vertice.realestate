@@ -192,8 +192,6 @@ html.dark .icon-sun { display: block; } html.dark .icon-moon { display: none; }
 .stat-ico { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 12px; color: rgb(var(--c)); background: rgb(var(--c) / .15); border: 1px solid rgb(var(--c) / .35); }
 
 /* ===== Método ===== */
-.step-ghost { position: absolute; top: -6px; right: 14px; font: 600 112px/1 Fraunces, serif; letter-spacing: -.04em; color: transparent; -webkit-text-stroke: 1.5px rgb(var(--c) / .55); transition: color .4s, -webkit-text-stroke-color .4s; pointer-events: none; }
-.glow-c:hover .step-ghost { color: rgb(var(--c) / .16); -webkit-text-stroke-color: rgb(var(--c)); }
 .step-dot { display: inline-flex; width: 60px; height: 60px; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: rgb(var(--c)); box-shadow: 0 0 0 6px rgb(var(--c) / .18), 0 10px 30px -6px rgb(var(--c) / .8); position: relative; z-index: 1; }
 .step-dot svg { color: #0b0f14; }
 .tag { font: 600 11px/1 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; padding: 8px 10px; border-radius: 999px; color: rgb(var(--c)); background: rgb(var(--c) / .12); border: 1px solid rgb(var(--c) / .35); }
@@ -236,3 +234,7 @@ html.dark .icon-sun { display: block; } html.dark .icon-moon { display: none; }
 .input.pl-10 { padding-left: 2.5rem; }
 .ruta.card { overflow: visible; }
 .input.w-auto { width: auto; }
+
+/* Cifras: Outfit en lugar de Fraunces (los numerales de la serif se ven decorativos) */
+.fig { font-family: Outfit, system-ui, sans-serif; font-weight: 600; letter-spacing: -.035em; font-variant-numeric: lining-nums tabular-nums; }
+.step-num { position: absolute; top: 24px; right: 24px; font: 600 11px/1 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: rgb(var(--c)); padding: 7px 10px; border-radius: 999px; border: 1px solid rgb(var(--c) / .4); background: rgb(var(--c) / .1); }
