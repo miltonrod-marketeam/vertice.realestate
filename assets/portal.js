@@ -117,19 +117,78 @@
       </div></article></div>`;
   }
 
+  const CCOL = { todos: 'ember', terreno: 'moss', casa: 'ember', bodega: 'tide', rancho: 'ochre' };
+  const ON = { ochre: '#1a1208', tide: '#04201b', moss: '#04210f' };
+
+  /* ---------- Franja de cifras ---------- */
+  let statsKey = '';
   function stats() {
-    if (!inv.length) { $('#statsRow').innerHTML = ''; return; }
+    if (!inv.length) { $('#statsRow').innerHTML = ''; statsKey = ''; return; }
     const ha = inv.reduce((a, i) => a + i.superficieM2, 0) / 1e4;
     const ps = inv.map((i) => i.precioMxn);
     const zonas = new Set(inv.map((i) => i.zona)).size;
     const items = [
-      [String(inv.length), 'inmuebles en la colección', 'ember'],
-      [ha.toLocaleString('es-MX', { maximumFractionDigits: 2 }) + ' ha', 'de superficie registrada', 'tide'],
-      [V.compact(Math.min(...ps)) + ' a ' + V.compact(Math.max(...ps)), 'rango de inversión (MXN)', 'moss'],
-      [String(zonas), 'zonas del Bajío', 'ochre']
+      { n: inv.length, dec: 0, suf: '', t: 'inmuebles en la colección', sub: 'cada uno con ficha técnica', c: 'ember', ico: 'building' },
+      { n: ha, dec: 2, suf: ' ha', t: 'de superficie registrada', sub: 'medida y con coordenadas', c: 'tide', ico: 'ruler' },
+      { txt: V.compact(Math.min(...ps)), t: 'inversión de entrada', sub: 'hasta ' + V.compact(Math.max(...ps)) + ' MXN', c: 'moss', ico: 'coin' },
+      { n: zonas, dec: 0, suf: '', t: zonas === 1 ? 'zona del Bajío' : 'zonas del Bajío', sub: 'del centro al corredor 57', c: 'ochre', ico: 'map' }
     ];
-    $('#statsRow').innerHTML = items.map(([n, t, c]) =>
-      `<div class="px-2 sm:px-4 lg:px-8 first:pl-0 lg:border-l border-line first:border-0"><p class="font-display text-[28px] sm:text-4xl font-semibold leading-none" style="color:rgb(var(--${c}))">${E(n)}</p><p class="text-[13px] text-muted mt-2">${E(t)}</p></div>`).join('');
+    const key = JSON.stringify(items.map((x) => [x.n, x.txt, x.sub]));
+    if (key === statsKey) return; statsKey = key;
+    $('#statsRow').innerHTML = items.map((x, k) => `<div class="stat reveal d${k % 4}" style="--c:var(--${x.c})">
+      <span class="stat-ico">${V.icon(x.ico, 18)}</span>
+      <p class="font-display text-[34px] sm:text-5xl font-semibold leading-none mt-5" style="color:rgb(var(--c))">${x.txt ? E(x.txt) : `<span data-count="${x.n}" data-dec="${x.dec}" data-suf="${E(x.suf)}">${E(x.n.toLocaleString('es-MX', { minimumFractionDigits: x.dec, maximumFractionDigits: x.dec }) + x.suf)}</span>`}</p>
+      <p class="font-semibold mt-3 text-[14px]">${E(x.t)}</p><p class="text-[12.5px] text-muted mt-0.5">${E(x.sub)}</p></div>`).join('');
+    countUp($('#statsRow'));
+  }
+  function countUp(root) {
+    const els = $$('[data-count]', root);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver((es) => es.forEach((en) => {
+      if (!en.isIntersecting) return; io.unobserve(en.target);
+      const el = en.target, to = +el.dataset.count, dec = +el.dataset.dec, suf = el.dataset.suf || '', t0 = performance.now(), d = 1200;
+      const f = (t) => { const k = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = (to * e).toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suf; if (k < 1) requestAnimationFrame(f); };
+      requestAnimationFrame(f);
+    }), { threshold: 0.4 });
+    els.forEach((el) => io.observe(el));
+  }
+
+  /* ---------- Encabezado de la colección (reacciona al filtro) ---------- */
+  const CAT_TXT = {
+    todos: 'Cada pieza llega con lectura de terreno, documentos a la vista y dictamen de un arquitecto.',
+    terreno: 'Lotes y predios campestres con pendiente, asoleamiento y servicios medidos antes de la primera visita.',
+    casa: 'Arquitectura con firma, pensada para su terreno. Ficha de construcción y dictamen incluidos.',
+    bodega: 'Naves y bodegas con acceso para carga, servicios y situación legal documentada.',
+    rancho: 'Fincas con superficie amplia: la lectura del suelo y del agua primero, la casa después.'
+  };
+  function catHead(l) {
+    const k = st.cat, c = CCOL[k];
+    const n = l.length, tot = l.reduce((a, i) => a + i.precioMxn, 0);
+    const min = n ? Math.min(...l.map((i) => i.precioMxn)) : 0;
+    const pm2 = n ? l.reduce((a, i) => a + V.precioM2(i), 0) / n : 0;
+    const chips = [];
+    if (st.zona !== 'todas') chips.push(['zona', 'Zona: ' + V.zona(st.zona)]);
+    if (st.rango !== 'todos') chips.push(['rango', 'Inversión: ' + ($('#heroRango').selectedOptions[0]?.text || st.rango)]);
+    if (st.q) chips.push(['q', 'Búsqueda: ' + st.q]);
+    const tile = (v, t, cc) => `<div class="rounded-2xl border border-line bg-surface/80 backdrop-blur p-4"><p class="font-display text-2xl sm:text-3xl font-semibold leading-none" style="color:rgb(var(--${cc}))">${E(v)}</p><p class="text-[12px] text-muted mt-2">${E(t)}</p></div>`;
+    $('#catHead').innerHTML = `<div class="swap relative card overflow-hidden p-7 sm:p-10" style="--c:var(--${c})">
+      <span class="absolute inset-x-0 top-0 h-1.5" style="background:linear-gradient(90deg,rgb(var(--c)),rgb(var(--c)/.15))"></span>
+      <span class="absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full pointer-events-none" style="background:radial-gradient(closest-side,rgb(var(--c)/.26),transparent)"></span>
+      <div class="relative grid lg:grid-cols-12 gap-8 items-end">
+        <div class="lg:col-span-7">
+          <p class="eyebrow" style="color:rgb(var(--c))">${k === 'todos' ? 'Colección' : 'Colección · ' + E(V.CAT[k].label)}</p>
+          <h2 class="font-display text-4xl sm:text-5xl lg:text-6xl font-semibold leading-[1.04] mt-4">${k === 'todos' ? 'Inmuebles con expediente <span style="color:rgb(var(--ember-ink))">revisado</span>' : E(V.CAT[k].corto)}</h2>
+          <p class="text-muted mt-4 max-w-xl leading-relaxed">${E(CAT_TXT[k])}</p>
+          ${chips.length ? `<div class="flex flex-wrap gap-2 mt-5">${chips.map(([q, t]) => `<button class="chip-c cursor-pointer hover:opacity-80" data-quitar="${q}" aria-label="Quitar filtro ${E(t)}">${E(t)} <span aria-hidden="true">✕</span></button>`).join('')}<button class="text-xs font-semibold underline text-muted self-center ml-1" data-reset-all>Limpiar todo</button></div>` : ''}
+        </div>
+        <div class="lg:col-span-5 grid grid-cols-2 gap-3">
+          ${tile(String(n), n === 1 ? 'inmueble en esta vista' : 'inmuebles en esta vista', c)}
+          ${tile(n ? V.compact(min) : '—', 'desde', 'moss')}
+          ${tile(n ? V.compact(tot) : '—', 'valor del conjunto', 'tide')}
+          ${tile(n ? V.mxn(pm2) : '—', 'promedio por m²', 'ochre')}
+        </div>
+      </div></div>`;
   }
 
   function tabs() {
@@ -137,17 +196,66 @@
     const defs = [['todos', 'Todos'], ...Object.entries(V.CAT).map(([k, v]) => [k, v.corto])];
     $('#tabs').innerHTML = defs.map(([k, label]) => {
       const n = k === 'todos' ? base.length : base.filter((i) => i.categoria === k).length;
-      const on = st.cat === k;
-      return `<button role="tab" aria-selected="${on}" data-tab="${k}" class="btn btn-sm ${on ? 'btn-ink' : 'btn-ghost'}">${E(label)}<span class="num text-[11px] opacity-70">${n}</span></button>`;
+      const on = st.cat === k, c = CCOL[k];
+      return `<button role="tab" aria-selected="${on}" data-tab="${k}" class="tabpill ${on ? 'on' : ''}" style="--c:var(--${c});--on:${ON[c] || '#fff'}"><i class="dot"></i>${E(label)}<span class="num text-[11px] opacity-70">${n}</span></button>`;
     }).join('');
+  }
+
+  /* ---------- Zonas ---------- */
+  const ZONA_INFO = {
+    'sma-centro': { c: 'ember', ico: 'home', txt: 'Calles empedradas y vida de barrio: casas de autor a pocos pasos de plazas, galerías y mesas.' },
+    'cruz-palmar': { c: 'moss', ico: 'sun', txt: 'Terrenos campestres con vista abierta y un trayecto corto al centro.' },
+    'atotonilco': { c: 'ochre', ico: 'compass', txt: 'Rumbo a Dolores Hidalgo: ranchos y fincas con superficie amplia y horizonte largo.' },
+    'corredor-industrial': { c: 'tide', ico: 'road', txt: 'Sobre la carretera 57: bodegas y naves con acceso para carga.' }
+  };
+  function zonas() {
+    $('#zonasGrid').innerHTML = Object.entries(D.zonas).map(([id, nombre], k) => {
+      const z = ZONA_INFO[id] || { c: 'ember', ico: 'map', txt: '' };
+      const l = inv.filter((i) => i.zona === id), n = l.length;
+      const desde = n ? Math.min(...l.map((i) => i.precioMxn)) : 0;
+      return `<a href="#catalogo" data-zona="${E(id)}" class="reveal d${k} zona card glow-c group relative overflow-hidden p-6 min-h-[320px] flex flex-col ${n ? '' : 'opacity-60 pointer-events-none'}" style="--c:var(--${z.c})">
+        <div class="topo zt" data-ztopo="${k}"></div>
+        <span class="zona-wash"></span>
+        <div class="relative"><span class="stat-ico">${V.icon(z.ico, 18)}</span>
+          <h3 class="font-display text-2xl font-semibold mt-5 leading-tight">${E(nombre)}</h3>
+          <p class="text-[14px] text-muted mt-3 leading-relaxed">${E(z.txt)}</p></div>
+        <div class="relative mt-auto pt-7 flex items-end justify-between gap-3">
+          <div><p class="font-display text-5xl font-semibold leading-none" style="color:rgb(var(--c))">${n}</p><p class="text-[12px] text-muted mt-1">${n === 1 ? 'inmueble' : 'inmuebles'}</p></div>
+          <div class="text-right"><p class="num text-[13px] font-semibold">${n ? V.compact(desde) + ' MXN' : 'Próximamente'}</p><p class="text-[12px] text-muted">${n ? 'inversión desde' : 'sin piezas hoy'}</p></div>
+        </div>
+        <span class="zona-cta">Ver piezas →</span></a>`;
+    }).join('');
+    $$('[data-ztopo]').forEach((el, k) => V.topo(el, [{ x: 760 - k * 90, y: 140 + k * 60, n: 9, s: 3 }]));
+  }
+
+  /* ---------- Ruta de compra y preguntas (contenido fijo) ---------- */
+  const RUTA = [
+    ['Visita y lectura', 'Recorres el inmueble con un asesor y recibes la ficha técnica con topografía, asoleamiento y servicios.', 'ember', 'compass'],
+    ['Oferta y apartado', 'Presentas tu oferta por escrito. Si se acepta, el inmueble pasa a Reservado.', 'tide', 'note'],
+    ['Revisión notarial', 'Tu notario revisa escritura, predial, gravamen y uso de suelo antes de cualquier firma.', 'moss', 'scale'],
+    ['Contrato', 'Se formaliza la promesa o el contrato de compraventa con las condiciones acordadas.', 'ochre', 'doc'],
+    ['Escrituración', 'Firma ante notario, pago de impuestos y derechos, e inscripción. Después, las llaves.', 'ember', 'check']
+  ];
+  const FAQ = [
+    ['¿Puedo visitar un inmueble antes de decidir?', 'Sí. Agenda una inspección y un asesor te acompaña. Antes de ir recibes la ficha técnica para que la visita sea sobre decisiones y no sobre datos básicos.'],
+    ['¿Los precios son negociables?', 'Cada pieza tiene un precio de lista. Cualquier oferta se presenta al propietario por escrito y te respondemos con su decisión.'],
+    ['¿Qué documentos debo revisar antes de comprar?', 'Escritura, predial al corriente, certificado de libertad de gravamen y uso de suelo. En cada ficha indicamos cuáles existen y cuáles están en trámite; la validación final la hace tu notario.'],
+    ['¿Qué significa que un inmueble esté Reservado?', 'Que hay una oferta aceptada en proceso. Sigue visible en la colección; si te interesa, déjanos tus datos y te avisamos si vuelve a estar disponible.'],
+    ['¿Cómo publico mi propiedad?', 'Llena el formulario de consignación al final de esta página. Un asesor revisa tus datos y agenda una visita de lectura del terreno antes de publicarla.']
+  ];
+  function estatico() {
+    $('#rutaGrid').innerHTML = RUTA.map(([t, d, c, ico], k) => `<li class="reveal d${k % 4} ruta card glow-c relative p-6 pt-8" style="--c:var(--${c})">
+      <span class="ruta-n">${k + 1}</span><span class="stat-ico mt-1">${V.icon(ico, 18)}</span>
+      <h3 class="font-display text-xl font-semibold mt-5">${E(t)}</h3><p class="text-[14px] text-muted mt-2 leading-relaxed">${E(d)}</p></li>`).join('');
+    $('#faqList').innerHTML = FAQ.map(([q, a], k) => `<details class="faq card" ${k === 0 ? 'open' : ''}><summary><span>${E(q)}</span><i aria-hidden="true"></i></summary><p>${E(a)}</p></details>`).join('');
+    $$('[data-ico]').forEach((el) => { el.innerHTML = V.icon(el.dataset.ico, 22); });
   }
 
   function render() {
     const l = ordenar(inv.filter((i) => coincide(i)));
     const n = l.length;
-    $('#catCount').textContent = n;
     $('#heroCount').textContent = n + (n === 1 ? ' inmueble' : ' inmuebles');
-    tabs(); hero(); stats();
+    tabs(); catHead(l); hero(); stats(); zonas();
     const vacio = `<div class="col-span-full card p-12 text-center"><p class="font-display text-2xl font-semibold">Ningún inmueble coincide</p><p class="text-muted mt-2 text-sm">Prueba con otra zona o rango, o cuéntanos qué buscas y lo localizamos.</p><div class="flex justify-center gap-3 mt-6"><button class="btn btn-ink" data-reset>Quitar filtros</button><button class="btn btn-ghost" data-contacto>Pedir una búsqueda</button></div></div>`;
     $('#grid').innerHTML = n ? l.map(card).join('') : vacio;
     $('#listaBody').innerHTML = n ? l.map(filaLista).join('') : `<tr><td colspan="9" class="text-center text-muted py-10">Sin resultados</td></tr>`;
@@ -377,6 +485,9 @@ ${fotos.length > 1 ? `<div class="g">${fotos.slice(1, 4).map((f) => `<img src="$
     el.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-ref]')) { e.preventDefault(); abrir(e.target.dataset.ref); } });
   });
   document.addEventListener('click', (e) => {
+    const qx = e.target.closest('[data-quitar]');
+    if (qx) { const d = { zona: 'todas', rango: 'todos', q: '' }; st[qx.dataset.quitar] = d[qx.dataset.quitar]; sync(); render(); return; }
+    if (e.target.closest('[data-reset-all]')) { Object.assign(st, { cat: 'todos', zona: 'todas', rango: 'todos', q: '' }); sync(); render(); return; }
     const c = e.target.closest('[data-cat]');
     if (c) { st.cat = c.dataset.cat; sync(); render(); }
     const z = e.target.closest('[data-zona]');
@@ -398,7 +509,11 @@ ${fotos.length > 1 ? `<div class="g">${fotos.slice(1, 4).map((f) => `<img src="$
   $('#footZonas').innerHTML = Object.entries(D.zonas).map(([k, v]) => `<p><a href="#catalogo" data-zona="${E(k)}" class="hover:text-ember-ink">${E(v)}</a></p>`).join('');
   $('#footMail').textContent = D.config.email; $('#footMail').href = 'mailto:' + D.config.email;
   $('#footWa').textContent = 'WhatsApp +52 415 555 0130'; $('#footWa').href = V.wa('Hola, quisiera información.');
+  estatico();
   V.topo($('#heroTopo'));
+  V.topo($('#statsTopo'), [{ x: 120, y: 60, n: 8, s: 3 }, { x: 900, y: 140, n: 9, s: 3 }]);
+  V.topo($('#metTopo'), [{ x: 860, y: 140, n: 11, s: 4 }, { x: 80, y: 600, n: 8, s: 3 }]);
+  V.topo($('#catTopo'), [{ x: 940, y: 80, n: 9, s: 3 }]);
   V.topo($('#simTopo'), [{ x: 880, y: 120, n: 12, s: 5 }, { x: 60, y: 560, n: 9, s: 2 }]);
   cargar(); sync(); render(); simular(); V.tilt(document.body); V.reveal();
   ruta();
