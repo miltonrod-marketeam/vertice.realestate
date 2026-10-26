@@ -7,6 +7,8 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
   let inv = [], pros = [], editId = null, selPros = null, seccion = 'panel';
+  const MAX_FOTOS = 10;
+  let fotosSel = [];
   const load = () => { inv = V.store.inventario(); pros = V.store.prospectos(); };
 
   const CATCOL = { terreno: 'moss', casa: 'ember', bodega: 'tide', rancho: 'ochre' };
@@ -153,29 +155,96 @@
     $('#formInm').innerHTML = SECC.map((s, n) => {
       const head = `<div class="flex items-center gap-3 mb-5"><span class="num text-xs font-semibold w-7 h-7 rounded-full flex items-center justify-center text-white" style="background:rgb(var(--${s.c}))">${n + 1}</span><h2 class="font-display text-xl font-semibold">${E(s.t)}</h2></div>`;
       if (s.fotos) {
-        const fs = base.fotos || [];
         return `<div class="card p-6 sm:p-7">${head}
-          <div class="flex flex-wrap gap-2 mb-5"><button type="button" class="btn btn-ghost btn-sm" id="btnFotosEj">Usar fotos de ejemplo de esta tipología</button><span class="text-xs text-muted self-center">La primera foto es la portada. Se aceptan enlaces https.</span></div>
-          <div class="space-y-4">${[0, 1, 2, 3].map((k) => `<div class="grid sm:grid-cols-[96px_1fr_1fr] gap-3 items-start"><div class="w-24 h-16 rounded-lg bg-surface2 overflow-hidden flex items-center justify-center text-[10px] text-muted" id="pv_${k}">${fs[k] && V.safeUrl(fs[k].url) ? `<img src="${E(V.safeUrl(fs[k].url))}" alt="" class="w-full h-full object-cover" onerror="Vertice.imgFallback(this)">` : 'Sin foto'}</div>
-            <div><label class="lbl" for="fu_${k}">Foto ${k + 1}${k === 0 ? ' (portada) *' : ''}</label><input id="fu_${k}" class="input" type="url" placeholder="https://…" value="${E(fs[k]?.url || '')}"></div>
-            <div><label class="lbl" for="fa_${k}">Descripción de la foto</label><input id="fa_${k}" class="input" value="${E(fs[k]?.alt || '')}" placeholder="Qué muestra la imagen"></div></div>`).join('')}</div>
-          <p class="text-xs mt-2" id="err_fotos" style="color:#D93F2B"></p></div>`;
+          <div id="fotosMgr">
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+              <label for="fotosFile" class="btn btn-primary btn-sm cursor-pointer" id="lblSubir">${V.icon('upload', 14)}Subir fotos</label>
+              <input id="fotosFile" type="file" accept="image/*" multiple class="sr-only">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnFotosEj">Usar fotos de ejemplo</button>
+              <span class="num text-sm font-semibold ml-auto px-3 py-1.5 rounded-full bg-surface2" id="fotosCount" aria-live="polite">0 / ${MAX_FOTOS}</span>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4">
+              <input id="fotoUrl" type="url" class="input flex-1 min-w-[220px]" placeholder="…o pega un enlace https de la foto" aria-label="Enlace de foto">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnFotoUrl">${V.icon('plus', 14)}Agregar enlace</button>
+            </div>
+            <div id="fotosDrop" class="rounded-2xl border-2 border-dashed border-line p-3 transition">
+              <div id="fotosGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+            </div>
+            <p class="text-xs text-muted mt-3">Máximo ${MAX_FOTOS} fotos. Arrastra imágenes aquí o usa el botón. La primera es la portada; reordena con las flechas. Demo: se comprimen y se guardan en este navegador; en producción irán a almacenamiento en la nube.</p>
+            <p class="text-xs mt-2" id="err_fotos" style="color:#D93F2B"></p>
+          </div></div>`;
       }
       return `<div class="card p-6 sm:p-7">${head}<div class="grid grid-cols-6 gap-x-4 gap-y-3">${s.f.map((f) => campo(f, base[f.k])).join('')}</div></div>`;
     }).join('') + `<div class="flex flex-wrap justify-end gap-3 sticky bottom-3 z-10"><div class="card p-3 flex gap-3 shadow-xl"><button type="button" class="btn btn-ghost" data-nav="cartera">Cancelar</button><button type="submit" class="btn btn-primary">${item ? 'Guardar cambios' : 'Guardar inmueble'}</button></div></div>`;
+    fotosSel = (base.fotos || []).filter((f) => V.safeUrl(f.url)).slice(0, MAX_FOTOS).map((f) => ({ url: f.url, alt: f.alt || '' }));
+    renderFotos();
   }
-  $('#formInm').addEventListener('input', (e) => {
-    const m = e.target.id.match(/^fu_(\d)$/); if (!m) return;
-    const u = V.safeUrl(e.target.value), pv = $('#pv_' + m[1]);
-    pv.innerHTML = u ? `<img src="${E(u)}" alt="" class="w-full h-full object-cover" onerror="Vertice.imgFallback(this)">` : 'Sin foto';
+  /* ---------- Galería (hasta 10 fotos) ---------- */
+  function renderFotos() {
+    const grid = $('#fotosGrid'); if (!grid) return;
+    const n = fotosSel.length, lleno = n >= MAX_FOTOS;
+    $('#fotosCount').textContent = `${n} / ${MAX_FOTOS}`;
+    $('#lblSubir').classList.toggle('opacity-50', lleno); $('#fotosFile').disabled = lleno;
+    $('#btnFotoUrl').disabled = lleno; $('#fotoUrl').disabled = lleno;
+    grid.innerHTML = fotosSel.map((f, k) => `<div class="rounded-2xl border border-line bg-surface overflow-hidden flex flex-col">
+      <div class="relative aspect-[4/3] bg-surface2"><img src="${E(V.safeUrl(f.url))}" alt="" class="w-full h-full object-cover" onerror="Vertice.imgFallback(this)">
+        ${k === 0 ? '<span class="absolute top-2 left-2 text-[11px] font-semibold px-2 py-1 rounded-full text-white" style="background:rgb(var(--ember))">Portada</span>' : ''}
+        <span class="absolute top-2 right-2 num text-[11px] px-1.5 py-0.5 rounded bg-black/65 text-white">${k + 1}</span></div>
+      <div class="p-2.5 space-y-2">
+        <input class="input !py-1.5 !text-[13px]" data-falt="${k}" value="${E(f.alt)}" placeholder="Qué muestra la foto" aria-label="Descripción de la foto ${k + 1}">
+        <div class="flex gap-1.5">
+          <button type="button" class="icon-btn !w-8 !h-8" data-fmove="-1" data-k="${k}" ${k === 0 ? 'disabled style="opacity:.35"' : ''} aria-label="Mover antes">${V.icon('chevL', 15)}</button>
+          <button type="button" class="icon-btn !w-8 !h-8" data-fmove="1" data-k="${k}" ${k === n - 1 ? 'disabled style="opacity:.35"' : ''} aria-label="Mover después">${V.icon('chevR', 15)}</button>
+          ${k > 0 ? `<button type="button" class="btn btn-ghost btn-sm !px-2.5 !text-[12px]" data-fcover="${k}">Portada</button>` : ''}
+          <button type="button" class="icon-btn !w-8 !h-8 ml-auto" data-fdel="${k}" aria-label="Quitar foto ${k + 1}" style="color:#D93F2B">${V.icon('trash', 15)}</button>
+        </div></div></div>`).join('') || '<p class="col-span-full text-center text-sm text-muted py-10">Aún no hay fotos. Sube la primera: será la portada.</p>';
+  }
+  const comprimir = (file) => new Promise((ok, no) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 1280 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+      const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.72));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); no(new Error('lectura')); };
+    im.src = url;
   });
+  async function agregarArchivos(files) {
+    const libres = MAX_FOTOS - fotosSel.length;
+    const l = [...files].filter((f) => /^image\//.test(f.type));
+    if (!l.length) { V.toast('Elige archivos de imagen'); return; }
+    if (libres <= 0) { V.toast(`Ya tienes ${MAX_FOTOS} fotos`); return; }
+    if (l.length > libres) V.toast(`Solo caben ${libres} más; se tomaron las primeras ${libres}`);
+    for (const f of l.slice(0, libres)) {
+      if (f.size > 25 * 1024 * 1024) { V.toast(`${f.name} pesa demasiado (máx. 25 MB)`); continue; }
+      try { fotosSel.push({ url: await comprimir(f), alt: '' }); renderFotos(); } catch { V.toast(`No se pudo leer ${f.name}`); }
+    }
+  }
+  $('#formInm').addEventListener('change', (e) => { if (e.target.id === 'fotosFile') { agregarArchivos(e.target.files); e.target.value = ''; } });
+  $('#formInm').addEventListener('input', (e) => { const k = e.target.dataset.falt; if (k != null && fotosSel[k]) fotosSel[k].alt = e.target.value; });
   $('#formInm').addEventListener('click', (e) => {
-    if (!e.target.closest('#btnFotosEj')) return;
-    const cat = $('#f_categoria').value;
-    const ej = (D.inventario.find((i) => i.categoria === cat) || D.inventario[0]).fotos;
-    ej.slice(0, 4).forEach((f, k) => { $('#fu_' + k).value = f.url; $('#fa_' + k).value = f.alt; $('#pv_' + k).innerHTML = `<img src="${E(f.url)}" alt="" class="w-full h-full object-cover">`; });
-    V.toast('Fotos de ejemplo cargadas');
+    const mv = e.target.closest('[data-fmove]');
+    if (mv) { const k = +mv.dataset.k, d = +mv.dataset.fmove, t = k + d; if (t >= 0 && t < fotosSel.length) { [fotosSel[k], fotosSel[t]] = [fotosSel[t], fotosSel[k]]; renderFotos(); } return; }
+    const cv = e.target.closest('[data-fcover]'); if (cv) { const [f] = fotosSel.splice(+cv.dataset.fcover, 1); fotosSel.unshift(f); renderFotos(); V.toast('Nueva portada'); return; }
+    const dl = e.target.closest('[data-fdel]'); if (dl) { fotosSel.splice(+dl.dataset.fdel, 1); renderFotos(); return; }
+    if (e.target.closest('#btnFotoUrl')) {
+      const u = V.safeUrl($('#fotoUrl').value);
+      if (!u || u.startsWith('data:')) { V.toast('Pega un enlace http o https válido'); return; }
+      if (fotosSel.length >= MAX_FOTOS) return;
+      fotosSel.push({ url: u, alt: '' }); $('#fotoUrl').value = ''; renderFotos(); return;
+    }
+    if (e.target.closest('#btnFotosEj')) {
+      const cat = $('#f_categoria').value;
+      const ej = (D.inventario.find((i) => i.categoria === cat) || D.inventario[0]).fotos;
+      ej.forEach((f) => { if (fotosSel.length < MAX_FOTOS && !fotosSel.some((x) => x.url === f.url)) fotosSel.push({ url: f.url, alt: f.alt }); });
+      renderFotos(); V.toast('Fotos de ejemplo agregadas');
+    }
   });
+  const dz = () => $('#fotosDrop');
+  $('#formInm').addEventListener('dragover', (e) => { if (e.target.closest('#fotosDrop')) { e.preventDefault(); dz().style.borderColor = 'rgb(var(--ember))'; } });
+  $('#formInm').addEventListener('dragleave', (e) => { if (dz() && !dz().contains(e.relatedTarget)) dz().style.borderColor = ''; });
+  $('#formInm').addEventListener('drop', (e) => { if (e.target.closest('#fotosDrop')) { e.preventDefault(); dz().style.borderColor = ''; agregarArchivos(e.dataTransfer.files); } });
   $('#formInm').addEventListener('submit', (e) => {
     e.preventDefault();
     $$('[id^="err_"]', e.target).forEach((p) => (p.textContent = ''));
@@ -191,8 +260,8 @@
     if (!(sup > 0)) err.superficieM2 = 'Indica una superficie mayor a 0.';
     if (lat === null || isNaN(lat) || lat < -90 || lat > 90) err.lat = 'Latitud inválida.';
     if (lng === null || isNaN(lng) || lng < -180 || lng > 180) err.lng = 'Longitud inválida.';
-    const fotos = [0, 1, 2, 3].map((k) => ({ url: V.safeUrl($('#fu_' + k).value), alt: $('#fa_' + k).value.trim() })).filter((f) => f.url);
-    if (!fotos.length) err.fotos = 'Agrega al menos la foto de portada con un enlace válido.';
+    const fotos = fotosSel.filter((f) => V.safeUrl(f.url)).map((f) => ({ url: f.url, alt: (f.alt || '').trim() || g('titulo') }));
+    if (!fotos.length) err.fotos = 'Agrega al menos una foto: será la portada.';
     const keys = Object.keys(err);
     if (keys.length) {
       keys.forEach((k) => { const p = $('#err_' + k); if (p) p.textContent = err[k]; });
@@ -210,8 +279,8 @@
     };
     if (o.destacado) inv.forEach((x) => { if (x.id !== o.id) x.destacado = false; });
     if (prev) inv[inv.indexOf(prev)] = o; else inv.unshift(o);
-    V.store.saveInventario(inv);
-    V.toast(prev ? `Cambios guardados en ${o.ref}` : `${o.ref} agregado a la cartera${o.estatus === 'borrador' ? ' como borrador' : ''}`);
+    const guardado = V.store.saveInventario(inv);
+    V.toast(guardado ? (prev ? `Cambios guardados en ${o.ref}` : `${o.ref} agregado a la cartera${o.estatus === 'borrador' ? ' como borrador' : ''}`) : 'Demo: el navegador no tiene espacio para tantas fotos subidas. Se ve en esta sesión, pero se perderá al recargar. Quita algunas o usa enlaces.');
     ir('cartera');
   });
 

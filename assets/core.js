@@ -11,6 +11,8 @@
   /* ---------- Seguridad básica ---------- */
   V.esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   V.safeUrl = (u) => {
+    const t = String(u).trim();
+    if (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(t)) return t; // fotos subidas desde el equipo (sin SVG)
     try { const x = new URL(String(u).trim(), location.href); return ['https:', 'http:'].includes(x.protocol) ? x.href : ''; } catch { return ''; }
   };
 
@@ -110,8 +112,9 @@
   /* ---------- Almacenamiento (reemplazable por API) ---------- */
   const K = { inv: 'vertice.v2.inventario', pro: 'vertice.v2.prospectos' };
   const mem = {}; // respaldo si localStorage no está disponible
-  const rd = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return mem[k] || null; } };
-  const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { mem[k] = v; } };
+  const rd = (k) => { if (mem[k]) return mem[k]; try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
+  // Devuelve false si el navegador no pudo guardar (cuota llena); en ese caso el dato queda solo en memoria de la sesión
+  const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); delete mem[k]; return true; } catch { mem[k] = v; return false; } };
   const isoAt = (dias, hora) => {
     const d = new Date(); d.setDate(d.getDate() + dias);
     const [h, m] = (hora || '10:00').split(':'); d.setHours(+h, +m, 0, 0); return d.toISOString();
@@ -132,13 +135,13 @@
       if (!Array.isArray(l) || !l.length) { l = JSON.parse(JSON.stringify(D.inventario)); wr(K.inv, l); }
       return l;
     },
-    saveInventario(l) { wr(K.inv, l); emit(); },
+    saveInventario(l) { const ok = wr(K.inv, l); emit(); return ok; },
     prospectos() {
       let l = rd(K.pro);
       if (!Array.isArray(l)) { l = sembrarProspectos(); wr(K.pro, l); }
       return l;
     },
-    saveProspectos(l) { wr(K.pro, l); emit(); },
+    saveProspectos(l) { const ok = wr(K.pro, l); emit(); return ok; },
     addProspecto(d) {
       const l = this.prospectos();
       const ejecutivo = D.asesores[l.length % D.asesores.length];

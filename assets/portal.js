@@ -55,22 +55,22 @@
           <div class="num text-[11px] opacity-70 mt-1.5">${V.usd(i.precioMxn)} · ${V.mxn(V.precioM2(i))}/m²</div>
         </div>
       </div>
+      <div class="h-1" style="background:linear-gradient(90deg,rgb(var(--c)),rgb(var(--c) / .25))"></div>
       <div class="p-5 flex flex-col gap-3 flex-1">
         <div class="flex items-center justify-between gap-3 text-xs text-muted">
-          <span class="num">${E(i.ref)}</span>
+          <span class="num font-semibold" style="color:rgb(var(--ember-ink))">${E(i.ref)}</span>
           <a data-stop href="${E(V.mapaUrl(i))}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-ember-ink">${V.icon('pin', 13)}${E(V.zona(i.zona))}</a>
         </div>
         <h3 class="font-display text-[22px] font-semibold leading-snug">${E(i.titulo)}</h3>
         <p class="text-sm text-muted leading-relaxed line-clamp-2">${E(i.descripcion)}</p>
-        <dl class="grid grid-cols-3 text-center divide-x divide-line border-t border-line pt-4 mt-auto">
-          <div class="px-1"><dt class="text-[11px] text-muted">Terreno</dt><dd class="num text-[13px] font-semibold mt-1">${V.m2(i.superficieM2)}</dd></div>
-          <div class="px-1"><dt class="text-[11px] text-muted">Construcción</dt><dd class="num text-[13px] font-semibold mt-1">${E(V.construccion(i))}</dd></div>
-          <div class="px-1" title="Estimación ilustrativa de plusvalía en la zona a 3 años"><dt class="text-[11px] text-muted">Plusvalía zona</dt><dd class="num text-[13px] font-semibold mt-1" style="color:rgb(var(--moss))">▲ ${E(i.plusvaliaZonaPct)}% est.</dd></div>
+        <dl class="grid grid-cols-3 gap-2 pt-1 mt-auto">
+          ${[['ruler', 'Terreno', V.m2(i.superficieM2), 'tide'], ['building', 'Construcción', V.construccion(i), 'ember'], ['trend', 'Plusvalía zona', '▲ ' + i.plusvaliaZonaPct + '% est.', 'ochre']].map(([ic, t, v, c], k) =>
+            `<div class="rounded-xl px-2 py-2.5 text-center" style="background:rgb(var(--${c}) / .11);box-shadow:inset 0 -2px 0 rgb(var(--${c}) / .85)"${k === 2 ? ' title="Estimación ilustrativa de plusvalía en la zona a 3 años"' : ''}><span class="inline-flex" style="color:rgb(var(--${c}))">${V.icon(ic, 15)}</span><dt class="text-[10.5px] text-muted mt-1 leading-none">${t}</dt><dd class="num text-[12.5px] font-semibold mt-1.5 leading-tight" style="color:rgb(var(--${c}))">${E(v)}</dd></div>`).join('')}
         </dl>
         <div class="flex items-center justify-between gap-2 pt-1">
-          <span class="inline-flex items-center gap-1.5 text-[12.5px] font-medium" style="color:rgb(var(--moss))">${V.icon('shield', 15)}${E(i.estatusLegal)}</span>
+          <span class="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1.5 rounded-full" style="color:rgb(var(--ink));background:rgb(var(--ink) / .07)"><span style="color:rgb(var(--ember))" class="inline-flex">${V.icon('shield', 14)}</span>${E(i.estatusLegal)}</span>
           <div class="flex items-center gap-2">
-            <a data-stop href="${E(V.wa(msg))}" target="_blank" rel="noopener" class="icon-btn !w-9 !h-9" aria-label="Consultar por WhatsApp" style="color:rgb(var(--moss))">${V.waIcon(17)}</a>
+            <a data-stop href="${E(V.wa(msg))}" target="_blank" rel="noopener" class="icon-btn !w-9 !h-9" aria-label="Consultar por WhatsApp" style="color:rgb(var(--tide))">${V.waIcon(17)}</a>
             <span class="btn btn-ink btn-sm">Ficha técnica <span aria-hidden="true">→</span></span>
           </div>
         </div>
@@ -130,8 +130,8 @@
     const items = [
       { n: inv.length, dec: 0, suf: '', t: 'inmuebles en la colección', sub: 'cada uno con ficha técnica', c: 'ember', ico: 'building' },
       { n: ha, dec: 2, suf: ' ha', t: 'de superficie registrada', sub: 'medida y con coordenadas', c: 'tide', ico: 'ruler' },
-      { txt: V.compact(Math.min(...ps)), t: 'inversión de entrada', sub: 'hasta ' + V.compact(Math.max(...ps)) + ' MXN', c: 'moss', ico: 'coin' },
-      { n: zonas, dec: 0, suf: '', t: zonas === 1 ? 'zona del Bajío' : 'zonas del Bajío', sub: 'del centro al corredor 57', c: 'ochre', ico: 'map' }
+      { txt: V.compact(Math.min(...ps)), t: 'inversión de entrada', sub: 'hasta ' + V.compact(Math.max(...ps)) + ' MXN', c: 'ochre', ico: 'coin' },
+      { n: zonas, dec: 0, suf: '', t: zonas === 1 ? 'zona del Bajío' : 'zonas del Bajío', sub: 'del centro al corredor 57', c: 'moss', ico: 'map' }
     ];
     const key = JSON.stringify(items.map((x) => [x.n, x.txt, x.sub]));
     if (key === statsKey) return; statsKey = key;
@@ -184,9 +184,9 @@
         </div>
         <div class="lg:col-span-5 grid grid-cols-2 gap-3">
           ${tile(String(n), n === 1 ? 'inmueble en esta vista' : 'inmuebles en esta vista', c)}
-          ${tile(n ? V.compact(min) : '—', 'desde', 'moss')}
-          ${tile(n ? V.compact(tot) : '—', 'valor del conjunto', 'tide')}
-          ${tile(n ? V.mxn(pm2) : '—', 'promedio por m²', 'ochre')}
+          ${tile(n ? V.compact(min) : '—', 'desde', c === 'ochre' ? 'ember' : 'ochre')}
+          ${tile(n ? V.compact(tot) : '—', 'valor del conjunto', c === 'tide' ? 'moss' : 'tide')}
+          ${tile(n ? V.mxn(pm2) : '—', 'promedio por m²', c === 'ember' ? 'moss' : 'ember')}
         </div>
       </div></div>`;
   }
@@ -232,8 +232,8 @@
   const RUTA = [
     ['Visita y lectura', 'Recorres el inmueble con un asesor y recibes la ficha técnica con topografía, asoleamiento y servicios.', 'ember', 'compass'],
     ['Oferta y apartado', 'Presentas tu oferta por escrito. Si se acepta, el inmueble pasa a Reservado.', 'tide', 'note'],
-    ['Revisión notarial', 'Tu notario revisa escritura, predial, gravamen y uso de suelo antes de cualquier firma.', 'moss', 'scale'],
-    ['Contrato', 'Se formaliza la promesa o el contrato de compraventa con las condiciones acordadas.', 'ochre', 'doc'],
+    ['Revisión notarial', 'Tu notario revisa escritura, predial, gravamen y uso de suelo antes de cualquier firma.', 'ochre', 'scale'],
+    ['Contrato', 'Se formaliza la promesa o el contrato de compraventa con las condiciones acordadas.', 'moss', 'doc'],
     ['Escrituración', 'Firma ante notario, pago de impuestos y derechos, e inscripción. Después, las llaves.', 'ember', 'check']
   ];
   const FAQ = [
@@ -282,14 +282,14 @@
     const f0 = fotos[0] || { url: '', alt: i.titulo };
     const res = i.estatus === 'reservado';
     const metr = [
-      ['Inversión', V.mxn(i.precioMxn) + ' MXN', `${V.usd(i.precioMxn)} · ${V.mxn(V.precioM2(i))}/m²`, 'ember'],
-      ['Superficie', V.m2(i.superficieM2), i.geometria, 'tide'],
-      ['Construcción', V.construccion(i), i.normativa, 'moss'],
-      ['Asoleamiento', i.asoleamiento, i.horasSol > 0 ? `${i.horasSol} h de sol útil al día` : 'Sin carga solar directa', 'ochre'],
-      ['Topografía', i.topografia, i.suelo, 'tide'],
-      ['Uso de suelo', i.usoSuelo, i.densidad, 'ember'],
-      ['Situación legal', i.estatusLegal, i.gravamen, 'moss'],
-      ['Conectividad', i.tiempoAcceso, i.vialidad, 'ochre']
+      ['Inversión', V.mxn(i.precioMxn) + ' MXN', `${V.usd(i.precioMxn)} · ${V.mxn(V.precioM2(i))}/m²`, 'ember', 'coin'],
+      ['Superficie', V.m2(i.superficieM2), i.geometria, 'tide', 'ruler'],
+      ['Construcción', V.construccion(i), i.normativa, 'ochre', 'building'],
+      ['Asoleamiento', i.asoleamiento, i.horasSol > 0 ? `${i.horasSol} h de sol útil al día` : 'Sin carga solar directa', 'ember', 'sun'],
+      ['Topografía', i.topografia, i.suelo, 'moss', 'trend'],
+      ['Uso de suelo', i.usoSuelo, i.densidad, 'ochre', 'map'],
+      ['Situación legal', i.estatusLegal, i.gravamen, 'ember', 'shield'],
+      ['Conectividad', i.tiempoAcceso, i.vialidad, 'ochre', 'compass']
     ];
     const serv = [['bolt', 'Energía eléctrica', i.luz], ['drop', 'Agua y drenaje', i.agua], ['scale', 'Registro de propiedad', `${i.estatusLegal} · ${i.gravamen}`], ['road', 'Vialidad y acceso', `${i.vialidad} (${i.tiempoAcceso})`]];
     return `<div class="cat-${E(i.categoria)}">
@@ -312,7 +312,7 @@
         `<button data-thumb="${n}" class="shrink-0 w-20 h-14 rounded-lg overflow-hidden ${n === 0 ? 'ring-2 ring-ember' : 'opacity-60 hover:opacity-100'}" aria-label="Ver foto ${n + 1}">${imgTag(f, 'w-full h-full object-cover')}</button>`).join('')}</div>` : ''}
       <div class="p-5 sm:p-8 space-y-9">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-6">
-          ${metr.map(([t, v, s, c]) => `<div class="pt-3" style="border-top:2px solid rgb(var(--${c}))"><p class="text-[11px] uppercase tracking-wider text-muted font-medium">${E(t)}</p><p class="font-display text-[19px] font-semibold leading-snug mt-1.5">${E(v)}</p><p class="text-xs text-muted mt-1 leading-snug">${E(s)}</p></div>`).join('')}
+          ${metr.map(([t, v, s, c, ic]) => `<div class="pt-3" style="border-top:2px solid rgb(var(--${c}))"><p class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted font-medium"><span class="shrink-0 w-7 h-7 rounded-lg inline-flex items-center justify-center" style="background:rgb(var(--${c}) / .14);color:rgb(var(--${c}))">${V.icon(ic, 15)}</span>${E(t)}</p><p class="font-display text-[19px] font-semibold leading-snug mt-2.5">${E(v)}</p><p class="text-xs text-muted mt-1 leading-snug">${E(s)}</p></div>`).join('')}
         </div>
         <div class="grid lg:grid-cols-5 gap-8">
           <div class="lg:col-span-3"><h4 class="font-display text-xl font-semibold">Memoria descriptiva</h4><p class="mt-3 text-[15px] leading-relaxed text-muted">${E(i.descripcion)}</p></div>
