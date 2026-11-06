@@ -10,9 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="../assets/tailwind-config.js"></script>
   <link rel="stylesheet" href="../assets/vertice.css">
+  <link rel="stylesheet" href="../assets/tailwind.css">
 </head>
 <body>
 <div class="min-h-screen lg:grid lg:grid-cols-[256px_1fr]">
@@ -40,7 +39,10 @@
       <div class="p-4 rounded-2xl border border-line bg-surface2/60 text-[12.5px] leading-relaxed text-muted">
         <p class="font-semibold text-ink mb-1">Base de datos conectada</p>Los cambios se guardan para todo el equipo y se ven en el portal al recargar.
       </div>
-      <button class="btn btn-ghost btn-sm w-full" type="button" data-salir>Cerrar sesión</button>
+      <div class="flex flex-col gap-2">
+        <button class="btn btn-ghost btn-sm w-full" type="button" data-cambiar-pass>Cambiar contraseña</button>
+        <button class="btn btn-ghost btn-sm w-full" type="button" data-salir>Cerrar sesión</button>
+      </div>
       <div class="flex gap-2">
         <a href="../" class="btn btn-ghost flex-1 btn-sm" id="lnkPortal"></a>
         <button class="icon-btn !w-9 !h-9" data-theme-toggle aria-label="Cambiar tema">

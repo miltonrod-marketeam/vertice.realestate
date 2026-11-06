@@ -81,11 +81,13 @@ create table public.prospectos (
   estatus           public.estatus_prospecto not null default 'Nuevo contacto',
   consentimiento_en timestamptz,             -- aviso de privacidad aceptado (LFPDPPP)
   resumen_inicial   text check (resumen_inicial is null or char_length(resumen_inicial) <= 120),
-  nota_inicial      text check (nota_inicial is null or char_length(nota_inicial) <= 1000)
+  nota_inicial      text check (nota_inicial is null or char_length(nota_inicial) <= 1000),
+  actualizado_en    timestamptz not null default now()   -- control de versión para edición simultánea
 );
 create index prospectos_estatus_asesor_idx on public.prospectos (estatus, asesor_id);
 create index prospectos_inmueble_idx on public.prospectos (inmueble_id);
 create index prospectos_asesor_idx on public.prospectos (asesor_id);
+create index prospectos_creado_idx on public.prospectos (creado_en desc);
 
 create table public.bitacora (
   id            uuid primary key default gen_random_uuid(),
@@ -124,6 +126,9 @@ grant execute on function private.es_admin() to authenticated;
 create function public.touch_actualizado() returns trigger language plpgsql set search_path = ''
 as $$ begin new.actualizado_en = now(); return new; end $$;
 create trigger inmuebles_touch before update on public.inmuebles for each row execute function public.touch_actualizado();
+create trigger prospectos_touch before update on public.prospectos for each row execute function public.touch_actualizado();
+-- La consola guarda con "update ... where id = X and actualizado_en = <versión cargada>".
+-- Si no se actualiza ninguna fila, otra persona guardó antes y se avisa en lugar de sobrescribir.
 
 -- Máximo 10 fotos por inmueble
 create function public.limite_fotos() returns trigger language plpgsql set search_path = ''
@@ -153,6 +158,29 @@ begin
 end $$;
 create trigger prospectos_alta after insert on public.prospectos for each row execute function public.alta_prospecto();
 
+-- Límite de envíos del portal: 3 por teléfono por hora y 30 en total cada 10 minutos.
+-- El visitante tampoco puede fijar la fecha de alta.
+create function public.limite_envios_portal() returns trigger language plpgsql security definer set search_path = ''
+as $$
+declare tel text := regexp_replace(new.telefono, '\D', '', 'g');
+begin
+  if (select auth.uid()) is not null then return new; end if;
+  if length(tel) < 8 then raise exception 'Teléfono inválido' using errcode = 'P0001'; end if;
+  if (select count(*) from public.prospectos p
+      where p.creado_en > now() - interval '1 hour'
+        and right(regexp_replace(p.telefono, '\D', '', 'g'), 10) = right(tel, 10)) >= 3 then
+    raise exception 'Demasiadas solicitudes con este teléfono. Intenta más tarde.' using errcode = 'P0001';
+  end if;
+  if (select count(*) from public.prospectos p
+      where p.creado_en > now() - interval '10 minutes' and p.consentimiento_en is not null) >= 30 then
+    raise exception 'El sistema recibe demasiadas solicitudes. Intenta en unos minutos.' using errcode = 'P0001';
+  end if;
+  new.creado_en := now();
+  return new;
+end $$;
+create trigger prospectos_limite before insert on public.prospectos for each row execute function public.limite_envios_portal();
+
+revoke execute on function public.limite_envios_portal() from public, anon, authenticated;
 revoke execute on function public.alta_prospecto() from public, anon, authenticated;
 revoke execute on function public.limite_fotos() from public, anon, authenticated;
 revoke execute on function public.touch_actualizado() from public, anon, authenticated;

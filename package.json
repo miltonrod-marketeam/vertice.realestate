@@ -1,0 +1,11 @@
+{
+  "name": "vertice-realestate",
+  "private": true,
+  "description": "Portal inmobiliario VÉRTICE / SMA. Sitio estático; solo se compila el CSS de Tailwind.",
+  "scripts": {
+    "css": "tailwindcss -i src/tailwind.css -o assets/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

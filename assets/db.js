@@ -22,6 +22,11 @@
   const idOf = new Map();     // uuid -> id del front
   const snapI = new Map();    // id -> JSON del último estado guardado
   const snapP = new Map();    // id prospecto -> { row, bit:Set }
+  const verI = new Map();     // id inmueble -> actualizado_en (control de versión)
+  const verP = new Map();     // id prospecto -> actualizado_en
+  const PUB = SB_URL + '/storage/v1/object/public/' + BUCKET + '/';
+  // Al volver del correo de recuperación la URL trae type=recovery; se lee antes de que el cliente la limpie
+  const RECUPERANDO = /type=recovery/.test(location.hash);
   let asesorPorNombre = new Map(), asesorPorId = new Map();
 
   V.uid = () => crypto.randomUUID(); // la base usa uuid como llave
@@ -45,7 +50,7 @@
     TXT.forEach(([j, d]) => { i[j] = s(r[d]); });
     i.fotos = (r.fotos || []).slice().sort((a, b) => a.orden - b.orden).map((f) => ({ url: f.url, alt: s(f.alt) }));
     i.creadoEn = r.creado_en;
-    uuidOf.set(i.id, r.id); idOf.set(r.id, i.id);
+    uuidOf.set(i.id, r.id); idOf.set(r.id, i.id); verI.set(i.id, r.actualizado_en);
     return i;
   }
   function inmuebleADb(i) {
@@ -68,6 +73,7 @@
     resumen: b.resumen, detalle: b.detalle, acuerdo: cut(b.acuerdo, 1000), fecha_proxima: b.fechaProxima || null
   });
   function prospectoDesdeDb(r) {
+    verP.set(r.id, r.actualizado_en);
     return {
       id: r.id, creadoEn: r.creado_en, nombre: r.nombre, telefono: r.telefono, email: s(r.email),
       inmuebleId: r.inmueble_id ? idOf.get(r.inmueble_id) || null : null, interes: s(r.interes), presupuesto: s(r.presupuesto) || 'Por definir',
@@ -106,8 +112,34 @@
 
   /* ---------- Escritura en segundo plano, en orden ---------- */
   let cola = Promise.resolve();
-  const encolar = (fn) => { cola = cola.then(fn).catch((e) => { console.error(e); V.toast('No se pudo guardar en la base de datos: ' + (e.message || e) + '. Recarga la página.'); }); return cola; };
+  const encolar = (fn) => {
+    cola = cola.then(fn).catch((e) => {
+      console.error(e);
+      V.toast(e && e.conflicto ? e.message : 'No se pudo guardar en la base de datos: ' + (e.message || e) + '. Recarga la página.');
+    });
+    return cola;
+  };
   const ok = (r) => { if (r.error) throw r.error; return r; };
+  const conflicto = (que) => Object.assign(new Error(`Otra persona modificó ${que} mientras lo editabas, o tu sesión expiró. Tu cambio no se guardó: recarga la página para ver la versión actual.`), { conflicto: true });
+
+  // Guarda una fila solo si nadie la cambió desde que se cargó; devuelve la nueva versión
+  async function guardarVersionado(tabla, fila, versionPrevia, que) {
+    if (versionPrevia === undefined) {
+      return ok(await sb.from(tabla).insert(fila).select('actualizado_en').single()).data.actualizado_en;
+    }
+    const { id, ...cambios } = fila;
+    const r = ok(await sb.from(tabla).update(cambios).eq('id', id).eq('actualizado_en', versionPrevia).select('actualizado_en'));
+    if (!r.data || !r.data.length) throw conflicto(que);
+    return r.data[0].actualizado_en;
+  }
+
+  // Borra del almacenamiento los archivos propios que ya no usa ningún inmueble. Si falla, no detiene el guardado.
+  async function borrarArchivos(urls) {
+    const rutas = urls.filter((u) => u && u.startsWith(PUB)).map((u) => decodeURIComponent(u.slice(PUB.length).split('?')[0]));
+    if (!rutas.length) return;
+    const r = await sb.storage.from(BUCKET).remove(rutas);
+    if (r.error) console.warn('No se pudieron borrar fotos del almacenamiento', r.error);
+  }
 
   async function subirFoto(ref, f) {
     const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(f.url);
@@ -123,22 +155,27 @@
     const ids = new Set(lista.map((i) => i.id));
     for (const id of [...snapI.keys()]) {
       if (ids.has(id)) continue;
+      const fotosPrevias = JSON.parse(snapI.get(id)).fotos.map((f) => f.url);
       ok(await sb.from('inmuebles').delete().eq('id', uuidOf.get(id)));
-      snapI.delete(id); idOf.delete(uuidOf.get(id)); uuidOf.delete(id);
+      snapI.delete(id); verI.delete(id); idOf.delete(uuidOf.get(id)); uuidOf.delete(id);
+      await borrarArchivos(fotosPrevias);
     }
     // primero los que dejan de ser destacados: solo puede haber uno
     const cambios = lista.filter((i) => snapI.get(i.id) !== JSON.stringify(i)).sort((a, b) => (a.destacado ? 1 : 0) - (b.destacado ? 1 : 0));
     for (const i of cambios) {
       if (!uuidOf.has(i.id)) { const u = crypto.randomUUID(); uuidOf.set(i.id, u); idOf.set(u, i.id); }
-      const prev = snapI.get(i.id) ? JSON.stringify(JSON.parse(snapI.get(i.id)).fotos) : null;
+      const fotosPrevias = snapI.get(i.id) ? JSON.parse(snapI.get(i.id)).fotos : [];
+      const prev = snapI.get(i.id) ? JSON.stringify(fotosPrevias) : null;
       for (const f of i.fotos) {
         if (f.url.startsWith('data:')) f.url = await subirFoto(i.ref, f);
         else if (f.url.startsWith('http:')) f.url = 'https:' + f.url.slice(5);
       }
-      ok(await sb.from('inmuebles').upsert(inmuebleADb(i)));
+      verI.set(i.id, await guardarVersionado('inmuebles', inmuebleADb(i), verI.get(i.id), i.ref));
       if (JSON.stringify(i.fotos) !== prev) {
         ok(await sb.from('fotos').delete().eq('inmueble_id', uuidOf.get(i.id)));
         if (i.fotos.length) ok(await sb.from('fotos').insert(i.fotos.slice(0, 10).map((f, k) => ({ inmueble_id: uuidOf.get(i.id), orden: k, url: f.url, alt: f.alt || '' }))));
+        const siguen = new Set(i.fotos.map((f) => f.url));
+        await borrarArchivos(fotosPrevias.map((f) => f.url).filter((u) => !siguen.has(u)));
       }
       snapI.set(i.id, JSON.stringify(i));
     }
@@ -149,12 +186,12 @@
     for (const id of [...snapP.keys()]) {
       if (ids.has(id)) continue;
       ok(await sb.from('prospectos').delete().eq('id', id));
-      snapP.delete(id);
+      snapP.delete(id); verP.delete(id);
     }
     for (const p of lista) {
       const snap = snapP.get(p.id);
       const fila = filaProspecto(p), json = JSON.stringify(fila);
-      if (!snap || snap.row !== json) ok(await sb.from('prospectos').upsert(fila));
+      if (!snap || snap.row !== json) verP.set(p.id, await guardarVersionado('prospectos', fila, snap ? verP.get(p.id) : undefined, 'al prospecto ' + p.nombre));
       const actuales = new Set(p.bitacora.map((b) => b.id));
       const borrar = snap ? [...snap.bit].filter((id) => !actuales.has(id)) : [];
       const nuevas = p.bitacora.filter((b) => !snap || !snap.bit.has(b.id));
@@ -193,31 +230,73 @@
     const r = await sb.from('asesores').select('id').eq('auth_id', user.id).eq('activo', true).maybeSingle();
     return !r.error && !!r.data;
   }
+  // Ventana a pantalla completa con un formulario; devuelve el contenedor
+  function ventana(html) {
+    const el = document.createElement('div');
+    el.className = 'fixed inset-0 z-[100] bg-paper flex items-center justify-center p-6';
+    el.innerHTML = `<form class="card p-7 sm:p-9 w-full max-w-sm space-y-4" novalidate>${html}</form>`;
+    document.body.appendChild(el);
+    return el;
+  }
   function pantallaAcceso() {
     return new Promise((resolve) => {
-      const el = document.createElement('div');
-      el.className = 'fixed inset-0 z-[100] bg-paper flex items-center justify-center p-6';
-      el.innerHTML = `<form class="card p-7 sm:p-9 w-full max-w-sm space-y-4" novalidate>
+      const el = ventana(`
         <div><h1 class="font-display text-2xl font-semibold">Consola VÉRTICE</h1><p class="text-sm text-muted mt-1">Acceso solo para el equipo.</p></div>
         <div><label class="lbl" for="lgMail">Correo</label><input id="lgMail" class="input" type="email" autocomplete="username" required></div>
         <div><label class="lbl" for="lgPass">Contraseña</label><input id="lgPass" class="input" type="password" autocomplete="current-password" required></div>
         <p id="lgErr" class="text-sm min-h-[1.25rem]" style="color:rgb(var(--ember))" role="alert"></p>
-        <button class="btn btn-primary w-full" type="submit">Entrar</button></form>`;
-      document.body.appendChild(el);
-      const f = el.querySelector('form'), err = el.querySelector('#lgErr'), btn = el.querySelector('button');
-      el.querySelector('#lgMail').focus();
+        <button class="btn btn-primary w-full" type="submit">Entrar</button>
+        <button class="text-sm text-muted underline underline-offset-4 hover:text-ink w-full" type="button" id="lgOlvido">¿Olvidaste tu contraseña?</button>`);
+      const f = el.querySelector('form'), err = el.querySelector('#lgErr'), btn = el.querySelector('[type="submit"]'), mail = el.querySelector('#lgMail');
+      mail.focus();
+      el.querySelector('#lgOlvido').addEventListener('click', async () => {
+        const correo = mail.value.trim();
+        if (!/^\S+@\S+\.\S+$/.test(correo)) { err.textContent = 'Escribe tu correo arriba y vuelve a dar clic.'; mail.focus(); return; }
+        const r = await sb.auth.resetPasswordForEmail(correo, { redirectTo: location.origin + location.pathname });
+        err.style.color = 'rgb(var(--moss))';
+        err.textContent = r.error ? 'No se pudo enviar el correo. Intenta en unos minutos.' : 'Si el correo es del equipo, te llegó un enlace para crear una contraseña nueva.';
+      });
       f.addEventListener('submit', async (e) => {
-        e.preventDefault(); err.textContent = ''; btn.disabled = true;
-        const { data, error } = await sb.auth.signInWithPassword({ email: el.querySelector('#lgMail').value.trim(), password: el.querySelector('#lgPass').value });
+        e.preventDefault(); err.style.color = ''; err.textContent = ''; btn.disabled = true;
+        const { data, error } = await sb.auth.signInWithPassword({ email: mail.value.trim(), password: el.querySelector('#lgPass').value });
         if (error || !data.user) { err.textContent = 'Correo o contraseña incorrectos.'; btn.disabled = false; return; }
         if (!(await esPersonal(data.user))) { await sb.auth.signOut(); err.textContent = 'Esta cuenta no tiene acceso a la consola.'; btn.disabled = false; return; }
         el.remove(); resolve();
       });
     });
   }
+  // Nueva contraseña: al volver del correo de recuperación o desde "Cambiar contraseña"
+  function pantallaNuevaPassword(cancelable) {
+    return new Promise((resolve) => {
+      const el = ventana(`
+        <div><h1 class="font-display text-2xl font-semibold">Nueva contraseña</h1><p class="text-sm text-muted mt-1">Mínimo 10 caracteres.</p></div>
+        <div><label class="lbl" for="npPass">Contraseña nueva</label><input id="npPass" class="input" type="password" autocomplete="new-password" minlength="10" required></div>
+        <div><label class="lbl" for="npPass2">Repítela</label><input id="npPass2" class="input" type="password" autocomplete="new-password" required></div>
+        <p id="npErr" class="text-sm min-h-[1.25rem]" style="color:rgb(var(--ember))" role="alert"></p>
+        <button class="btn btn-primary w-full" type="submit">Guardar contraseña</button>
+        ${cancelable ? '<button class="btn btn-ghost w-full" type="button" id="npCancel">Cancelar</button>' : ''}`);
+      const err = el.querySelector('#npErr'), btn = el.querySelector('[type="submit"]');
+      el.querySelector('#npPass').focus();
+      const c = el.querySelector('#npCancel'); if (c) c.addEventListener('click', () => { el.remove(); resolve(false); });
+      el.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault(); err.textContent = '';
+        const a = el.querySelector('#npPass').value, b = el.querySelector('#npPass2').value;
+        if (a.length < 10) { err.textContent = 'Usa al menos 10 caracteres.'; return; }
+        if (a !== b) { err.textContent = 'Las contraseñas no coinciden.'; return; }
+        btn.disabled = true;
+        const r = await sb.auth.updateUser({ password: a });
+        if (r.error) { err.textContent = 'No se pudo guardar: ' + r.error.message; btn.disabled = false; return; }
+        el.remove(); V.toast('Contraseña actualizada'); resolve(true);
+      });
+    });
+  }
   async function exigirAcceso() {
     const { data } = await sb.auth.getSession();
-    if (data.session && (await esPersonal(data.session.user))) return;
+    if (data.session && (await esPersonal(data.session.user))) {
+      if (RECUPERANDO) await pantallaNuevaPassword(false);
+      return;
+    }
+    if (RECUPERANDO) await sb.auth.signOut();
     await pantallaAcceso();
   }
 
@@ -239,6 +318,7 @@
       if (staff) await exigirAcceso();
       await cargar(staff);
       document.querySelectorAll('[data-salir]').forEach((b) => b.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); }));
+      document.querySelectorAll('[data-cambiar-pass]').forEach((b) => b.addEventListener('click', () => pantallaNuevaPassword(true)));
     } catch (e) { avisoError(e); return; }
     const t = document.createElement('script'); t.src = src; document.body.appendChild(t);
   };
