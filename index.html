@@ -14,9 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="assets/tailwind-config.js"></script>
   <link rel="stylesheet" href="assets/vertice.css">
+  <link rel="stylesheet" href="assets/tailwind.css">
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -264,7 +263,8 @@
             <li class="flex gap-4"><span class="font-display text-3xl font-semibold" style="color:rgb(var(--moss))">3</span><p class="text-muted leading-relaxed pt-1">Si cumple, se publica con su ficha completa.</p></li>
           </ol>
         </div>
-        <form id="formConsigna" class="lg:col-span-7 card p-6 sm:p-8 grid sm:grid-cols-2 gap-4" novalidate>
+        <form id="formConsigna" class="relative lg:col-span-7 card p-6 sm:p-8 grid sm:grid-cols-2 gap-4" novalidate>
+          <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"><label>Sitio web<input type="text" name="sitio_web" tabindex="-1" autocomplete="off"></label></div>
           <div><label class="lbl" for="cNombre">Nombre completo *</label><input id="cNombre" class="input" required autocomplete="name" placeholder="Nombre y apellido"></div>
           <div><label class="lbl" for="cTel">Teléfono o WhatsApp *</label><input id="cTel" class="input" required type="tel" autocomplete="tel" placeholder="415 123 4567"></div>
           <div><label class="lbl" for="cTipo">Tipo de inmueble</label><select id="cTipo" class="input"><option>Terreno campestre o urbano</option><option>Casa o residencia</option><option>Bodega o nave</option><option>Rancho o finca</option></select></div>
@@ -305,7 +305,8 @@
         <div><h3 id="contTitulo" class="font-display text-2xl font-semibold">Agendar inspección</h3><p class="text-sm text-muted mt-1">Un asesor te contacta en horario hábil.</p></div>
         <button class="icon-btn" id="contCerrar" aria-label="Cerrar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>
-      <form id="formContacto" class="mt-5 space-y-4" novalidate>
+      <form id="formContacto" class="relative mt-5 space-y-4" novalidate>
+        <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden"><label>Sitio web<input type="text" name="sitio_web" tabindex="-1" autocomplete="off"></label></div>
         <div><label class="lbl" for="kNombre">Nombre *</label><input id="kNombre" class="input" required autocomplete="name"></div>
         <div><label class="lbl" for="kTel">WhatsApp o celular *</label><input id="kTel" class="input" type="tel" required autocomplete="tel" placeholder="415 123 4567"></div>
         <div><label class="lbl" for="kInteres">Me interesa</label><select id="kInteres" class="input"></select></div>

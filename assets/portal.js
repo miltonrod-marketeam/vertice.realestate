@@ -426,9 +426,15 @@ ${fotos.length > 1 ? `<div class="g">${fotos.slice(1, 4).map((f) => `<img src="$
   // Envía a la base y solo confirma cuando la base responde; evita doble envío
   const enviar = async (form, datos, alTerminar) => {
     const b = form.querySelector('[type="submit"]'); if (b.disabled) return;
+    // Campo trampa: una persona no lo ve; si viene lleno es un bot. Se le responde igual y no se guarda.
+    const trampa = form.querySelector('[name="sitio_web"]');
+    if (trampa && trampa.value) { form.reset(); alTerminar(); return; }
     b.disabled = true;
     try { await V.store.addProspecto(datos); form.reset(); alTerminar(); }
-    catch (err) { console.error(err); V.toast('No se pudo enviar. Intenta de nuevo o escríbenos por WhatsApp.'); }
+    catch (err) {
+      console.error(err);
+      V.toast(err && err.code === 'P0001' ? err.message : 'No se pudo enviar. Intenta de nuevo o escríbenos por WhatsApp.');
+    }
     finally { b.disabled = false; }
   };
   $('#formContacto').addEventListener('submit', (e) => {
