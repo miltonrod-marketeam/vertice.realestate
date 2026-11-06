@@ -310,6 +310,7 @@
         <div><label class="lbl" for="kTel">WhatsApp o celular *</label><input id="kTel" class="input" type="tel" required autocomplete="tel" placeholder="415 123 4567"></div>
         <div><label class="lbl" for="kInteres">Me interesa</label><select id="kInteres" class="input"></select></div>
         <div><label class="lbl" for="kMsg">Mensaje (opcional)</label><textarea id="kMsg" rows="2" class="input"></textarea></div>
+        <p class="text-xs text-muted">Usamos tus datos solo para contactarte sobre esta solicitud.</p>
         <button class="btn btn-primary w-full" type="submit">Confirmar solicitud</button>
       </form>
     </div>
@@ -317,6 +318,8 @@
 
   <script src="data/inventario.js"></script>
   <script src="assets/core.js"></script>
-  <script src="assets/portal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/db.js"></script>
+  <script>Vertice.boot('assets/portal.js');</script>
 </body>
 </html>

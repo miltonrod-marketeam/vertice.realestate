@@ -1,7 +1,6 @@
 /* VÉRTICE · núcleo compartido (portal + consola)
  * - esc / safeUrl: toda cadena que entra a innerHTML pasa por aquí (evita XSS)
- * - store: capa de datos. HOY usa localStorage; en producción se reemplaza por llamadas
- *   a la API manteniendo estas mismas firmas (ver docs/esquema.sql y README).
+ * - store: capa de datos, definida en assets/db.js (Supabase).
  */
 (function () {
   const D = window.VERTICE_DATA;
@@ -109,54 +108,7 @@
     toggle() { this.set(document.documentElement.classList.contains('dark') ? 'light' : 'dark'); }
   };
 
-  /* ---------- Almacenamiento (reemplazable por API) ---------- */
-  const K = { inv: 'vertice.v2.inventario', pro: 'vertice.v2.prospectos' };
-  const mem = {}; // respaldo si localStorage no está disponible
-  const rd = (k) => { if (mem[k]) return mem[k]; try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
-  // Devuelve false si el navegador no pudo guardar (cuota llena); en ese caso el dato queda solo en memoria de la sesión
-  const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); delete mem[k]; return true; } catch { mem[k] = v; return false; } };
-  const isoAt = (dias, hora) => {
-    const d = new Date(); d.setDate(d.getDate() + dias);
-    const [h, m] = (hora || '10:00').split(':'); d.setHours(+h, +m, 0, 0); return d.toISOString();
-  };
-  const sembrarProspectos = () => D.prospectos.map((p) => ({
-    id: p.id, creadoEn: isoAt(p.creadoDias, '09:00'), nombre: p.nombre, telefono: p.telefono, email: p.email,
-    inmuebleId: p.inmuebleId, interes: '', presupuesto: p.presupuesto, origen: p.origen, ejecutivo: p.ejecutivo, estatus: p.estatus,
-    bitacora: p.bitacora.map((b) => ({
-      id: b.id, fecha: isoAt(b.dias, b.hora), ejecutivo: b.ejecutivo, tipo: b.tipo, resumen: b.resumen, detalle: b.detalle, acuerdo: b.acuerdo || '',
-      fechaProxima: b.proximoDias == null ? null : isoAt(b.proximoDias, b.proximaHora || '10:00')
-    }))
-  }));
-  const emit = () => window.dispatchEvent(new CustomEvent('vertice:data'));
-
-  V.store = {
-    inventario() {
-      let l = rd(K.inv);
-      if (!Array.isArray(l) || !l.length) { l = JSON.parse(JSON.stringify(D.inventario)); wr(K.inv, l); }
-      return l;
-    },
-    saveInventario(l) { const ok = wr(K.inv, l); emit(); return ok; },
-    prospectos() {
-      let l = rd(K.pro);
-      if (!Array.isArray(l)) { l = sembrarProspectos(); wr(K.pro, l); }
-      return l;
-    },
-    saveProspectos(l) { const ok = wr(K.pro, l); emit(); return ok; },
-    addProspecto(d) {
-      const l = this.prospectos();
-      const ejecutivo = D.asesores[l.length % D.asesores.length];
-      const ahora = new Date().toISOString();
-      const p = {
-        id: V.uid('p'), creadoEn: ahora, nombre: d.nombre, telefono: d.telefono, email: d.email || '',
-        inmuebleId: d.inmuebleId || null, interes: d.interes || '', presupuesto: d.presupuesto || 'Por definir',
-        origen: d.origen || 'Portal web', ejecutivo, estatus: 'Nuevo contacto',
-        bitacora: [{ id: V.uid('b'), fecha: ahora, ejecutivo: 'Sistema VÉRTICE', tipo: 'Nota interna', resumen: d.resumen || 'Registro desde el portal',
-          detalle: d.nota || 'Solicitud recibida desde el portal público.', acuerdo: 'Contactar en las próximas 24 horas.', fechaProxima: null }]
-      };
-      l.unshift(p); this.saveProspectos(l); return p;
-    },
-    reset() { try { localStorage.removeItem(K.inv); localStorage.removeItem(K.pro); } catch {} delete mem[K.inv]; delete mem[K.pro]; emit(); }
-  };
+  /* Almacenamiento: Vertice.store lo define assets/db.js (Supabase). */
 
   /* ---------- Curvas de nivel ---------- */
   function blob(cx, cy, rx, ry, k, seed) {

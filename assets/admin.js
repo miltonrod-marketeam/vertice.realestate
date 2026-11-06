@@ -1,5 +1,5 @@
 /* VÉRTICE · lógica de la consola (CMS + CRM)
- * Toda lectura/escritura pasa por Vertice.store: es el punto donde se conecta la API real. */
+ * Toda lectura/escritura pasa por Vertice.store (assets/db.js, conectado a Supabase). */
 (function () {
   'use strict';
   const V = Vertice, D = V.data, E = V.esc;
@@ -170,7 +170,7 @@
             <div id="fotosDrop" class="rounded-2xl border-2 border-dashed border-line p-3 transition">
               <div id="fotosGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"></div>
             </div>
-            <p class="text-xs text-muted mt-3">Máximo ${MAX_FOTOS} fotos. Arrastra imágenes aquí o usa el botón. La primera es la portada; reordena con las flechas. Demo: se comprimen y se guardan en este navegador; en producción irán a almacenamiento en la nube.</p>
+            <p class="text-xs text-muted mt-3">Máximo ${MAX_FOTOS} fotos. Arrastra imágenes aquí o usa el botón. La primera es la portada; reordena con las flechas. Se comprimen y se suben al almacenamiento del sitio al guardar.</p>
             <p class="text-xs mt-2" id="err_fotos" style="color:#D93F2B"></p>
           </div></div>`;
       }
@@ -279,8 +279,8 @@
     };
     if (o.destacado) inv.forEach((x) => { if (x.id !== o.id) x.destacado = false; });
     if (prev) inv[inv.indexOf(prev)] = o; else inv.unshift(o);
-    const guardado = V.store.saveInventario(inv);
-    V.toast(guardado ? (prev ? `Cambios guardados en ${o.ref}` : `${o.ref} agregado a la cartera${o.estatus === 'borrador' ? ' como borrador' : ''}`) : 'Demo: el navegador no tiene espacio para tantas fotos subidas. Se ve en esta sesión, pero se perderá al recargar. Quita algunas o usa enlaces.');
+    V.store.saveInventario(inv);
+    V.toast(prev ? `Cambios guardados en ${o.ref}` : `${o.ref} agregado a la cartera${o.estatus === 'borrador' ? ' como borrador' : ''}`);
     ir('cartera');
   });
 
@@ -454,7 +454,7 @@
     };
     r.readAsText(f); e.target.value = '';
   });
-  $('#btnReset').addEventListener('click', () => { if (confirm('Se restablecerán los inmuebles y prospectos de ejemplo. ¿Continuar?')) { V.store.reset(); load(); datos(); navHTML(); V.toast('Datos de demo restablecidos'); } });
+  $('#btnReset')?.addEventListener('click', () => { if (confirm('Se restablecerán los inmuebles y prospectos de ejemplo. ¿Continuar?')) { V.store.reset(); load(); datos(); navHTML(); V.toast('Datos de demo restablecidos'); } });
   $$('[data-cerrar]').forEach((b) => b.addEventListener('click', () => mPros.close()));
   window.addEventListener('storage', (e) => {
     if (!e.key || !e.key.startsWith('vertice.v2') || seccion === 'alta' || mBit.isOpen || mPros.isOpen) return;
