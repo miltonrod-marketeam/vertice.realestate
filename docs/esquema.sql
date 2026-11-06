@@ -35,6 +35,7 @@ create table public.inmuebles (
   categoria          public.categoria_inmueble not null,
   zona_id            text references public.zonas(id),
   estatus            public.estatus_inmueble not null default 'borrador',
+  vendido_en         timestamptz,          -- lo fija el trigger fecha_vendido al marcar el inmueble como vendido
   destacado          boolean not null default false,
   titulo             text not null,
   ubicacion          text not null,
@@ -201,19 +202,35 @@ create policy zonas_admin_alta on public.zonas for insert to authenticated with 
 create policy zonas_admin_edita on public.zonas for update to authenticated using ((select private.es_admin())) with check ((select private.es_admin()));
 create policy zonas_admin_borra on public.zonas for delete to authenticated using ((select private.es_admin()));
 
--- Inmuebles: el público ve publicados y reservados; el personal ve y edita todo
-create policy inmuebles_publico on public.inmuebles for select to anon using (estatus in ('publicado','reservado'));
+-- Fecha de venta: se fija sola al pasar a "vendido" y se borra si vuelve a otro estatus
+create or replace function private.fecha_vendido() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.estatus = 'vendido' then
+    if tg_op = 'INSERT' or old.estatus is distinct from 'vendido' then new.vendido_en := now();
+    else new.vendido_en := old.vendido_en; end if;
+  else new.vendido_en := null; end if;
+  return new;
+end $$;
+create trigger fecha_vendido before insert or update on public.inmuebles
+  for each row execute function private.fecha_vendido();
+
+-- Inmuebles: el público ve publicados, reservados y vendidos de los últimos 10 días; el personal ve y edita todo
+create policy inmuebles_publico on public.inmuebles for select to anon
+  using (estatus in ('publicado','reservado') or (estatus = 'vendido' and vendido_en > now() - interval '10 days'));
 create policy inmuebles_auth_lee on public.inmuebles for select to authenticated
-  using (estatus in ('publicado','reservado') or (select private.es_staff()));
+  using (estatus in ('publicado','reservado') or (estatus = 'vendido' and vendido_en > now() - interval '10 days') or (select private.es_staff()));
 create policy inmuebles_staff_alta on public.inmuebles for insert to authenticated with check ((select private.es_staff()));
 create policy inmuebles_staff_edita on public.inmuebles for update to authenticated using ((select private.es_staff())) with check ((select private.es_staff()));
 create policy inmuebles_staff_borra on public.inmuebles for delete to authenticated using ((select private.es_staff()));
 
 -- Fotos: mismas reglas que su inmueble
 create policy fotos_anon_lee on public.fotos for select to anon
-  using (exists (select 1 from public.inmuebles i where i.id = inmueble_id and i.estatus in ('publicado','reservado')));
+  using (exists (select 1 from public.inmuebles i where i.id = inmueble_id
+    and (i.estatus in ('publicado','reservado') or (i.estatus = 'vendido' and i.vendido_en > now() - interval '10 days'))));
 create policy fotos_auth_lee on public.fotos for select to authenticated
-  using ((select private.es_staff()) or exists (select 1 from public.inmuebles i where i.id = inmueble_id and i.estatus in ('publicado','reservado')));
+  using ((select private.es_staff()) or exists (select 1 from public.inmuebles i where i.id = inmueble_id
+    and (i.estatus in ('publicado','reservado') or (i.estatus = 'vendido' and i.vendido_en > now() - interval '10 days'))));
 create policy fotos_staff_alta on public.fotos for insert to authenticated with check ((select private.es_staff()));
 create policy fotos_staff_edita on public.fotos for update to authenticated using ((select private.es_staff())) with check ((select private.es_staff()));
 create policy fotos_staff_borra on public.fotos for delete to authenticated using ((select private.es_staff()));

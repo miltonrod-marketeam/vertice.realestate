@@ -38,6 +38,7 @@ function pagina({ b, titulo, descripcion, canonical, imagen, ld, cuerpo, status 
   <link rel="stylesheet" href="/assets/vertice.css">
   <link rel="stylesheet" href="/assets/tailwind.css">
   ${ld || ''}
+  <style>@media print{header,footer,[data-imprimir],.band{display:none!important}body{background:#fff}}</style>
 </head>
 <body class="bg-paper text-ink font-sans antialiased">
   <header class="sticky top-0 z-40 bg-paper/85 backdrop-blur-xl border-b border-line">
@@ -62,6 +63,7 @@ function pagina({ b, titulo, descripcion, canonical, imagen, ld, cuerpo, status 
     </div>
   </footer>
   ${TOGGLE}
+  <script>document.querySelectorAll('[data-imprimir]').forEach(function(b){b.addEventListener('click',function(){window.print()})})</script>
 </body>
 </html>`;
 }
@@ -75,21 +77,29 @@ const grupo = (titulo, c, filas) => {
 module.exports = async (req, res) => {
   const b = L.base(req);
   const ref = String((req.query && req.query.ref) || new URL(req.url, b).searchParams.get('ref') || '').toUpperCase();
+  const token = L.cookie(req, 'vsb');
+  const quiereAdmin = new URL(req.url, b).searchParams.get('admin') === '1';
+  const admin = !!token && quiereAdmin;
+  const sinCache = quiereAdmin ? 'private, no-store' : undefined; // evita que la nube guarde la vista del personal
   try {
-    const [inv, zonas] = await Promise.all([L.inmuebles(), L.zonas()]);
-    const i = inv.find((x) => x.ref === ref);
-    if (!i) {
+    const [inv, zonas, i] = await Promise.all([L.inmuebles(), L.zonas(), L.inmueble(ref, admin ? token : null)]);
+    const visible = !!i && L.publico(i);
+    if (!i || (!visible && !admin)) {
       const cuerpo = `<main class="max-w-3xl mx-auto px-5 sm:px-8 py-24"><p class="eyebrow">Referencia ${L.esc(ref || '—')}</p>
         <h1 class="font-display text-4xl font-semibold mt-3">Este inmueble ya no está en la colección</h1>
         <p class="text-muted mt-4">Puede que se haya vendido o que la referencia esté mal escrita.</p>
         <a class="btn btn-primary mt-8" href="/#catalogo">Ver los inmuebles disponibles</a></main>`;
-      return L.enviar(res, 404, 'text/html; charset=utf-8', pagina({ b, titulo: 'Inmueble no encontrado · VÉRTICE / SMA', descripcion: 'El inmueble no está disponible.', cuerpo }), 'public, s-maxage=60');
+      return L.enviar(res, 404, 'text/html; charset=utf-8', pagina({ b, titulo: 'Inmueble no encontrado · VÉRTICE / SMA', descripcion: 'El inmueble no está disponible.', cuerpo }), sinCache || 'public, s-maxage=60');
     }
+    const vendido = i.estatus === 'vendido';
     const D = L.datos();
     const url = L.urlInmueble(b, i.ref);
     const cat = L.CAT[i.categoria] || { label: i.categoria, plural: i.categoria, c: 'ember' };
     const zona = zonas[i.zona_id] || '';
     const reservado = i.estatus === 'reservado';
+    const vence = vendido && i.vendido_en ? new Date(new Date(i.vendido_en).getTime() + L.VENDIDO_DIAS * 864e5) : null;
+    const fmt = (d) => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Mexico_City' });
+    const aviso = !admin ? '' : `<div class="band" style="border-bottom:3px solid rgb(var(--ember))"><div class="max-w-7xl mx-auto px-5 sm:px-8 py-3 text-sm flex flex-wrap items-center justify-between gap-3"><p><strong>Vista de administración.</strong> Estatus: ${L.esc(i.estatus)}.${vendido ? (visible ? ` El público lo ve como vendido hasta el ${fmt(vence)}.` : ' Ya no se muestra al público; esta página es solo para consulta.') : (visible ? '' : ' No está publicado.')}</p><a class="underline underline-offset-4" href="/admin/">Volver a la consola</a></div></div>`;
     const fotos = i.fotos.length ? i.fotos : [];
     const precioM2 = i.superficie_m2 > 0 ? Math.round(i.precio_mxn / i.superficie_m2) : 0;
     const dist = L.km(L.PARROQUIA, [+i.lat, +i.lng]);
@@ -111,7 +121,7 @@ module.exports = async (req, res) => {
           datePosted: i.creado_en, dateModified: i.actualizado_en, inLanguage: 'es-MX', image: fotos.map((f) => f.url),
           offers: {
             '@type': 'Offer', price: +i.precio_mxn, priceCurrency: 'MXN', url,
-            availability: reservado ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
+            availability: vendido ? 'https://schema.org/SoldOut' : reservado ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
             seller: { '@id': `${b}/#agencia` }
           },
           about: { '@id': `${url}#inmueble` }, isPartOf: { '@id': `${b}/#sitio` }
@@ -137,11 +147,12 @@ module.exports = async (req, res) => {
     const galeria = fotos.length ? `
       <figure class="card overflow-hidden over-photo relative aspect-[4/3]">
         <img src="${L.esc(fotos[0].url)}" alt="${L.esc(fotos[0].alt || i.titulo)}" class="w-full h-full object-cover" fetchpriority="high" onerror="${FALLBACK}">
-        <div class="absolute top-4 left-4 flex gap-2"><span class="chip-c">${L.esc(cat.label)}</span>${reservado ? '<span class="etq bg-white text-black">Reservado</span>' : ''}</div>
+        <div class="absolute top-4 left-4 flex gap-2"><span class="chip-c">${L.esc(cat.label)}</span>${reservado ? '<span class="etq bg-white text-black">Reservado</span>' : ''}${vendido ? '<span class="etq" style="background:rgb(var(--ember));color:#fff">Vendido</span>' : ''}</div>
       </figure>
       ${fotos.length > 1 ? `<ul class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-3">${fotos.slice(1).map((f) => `<li class="card overflow-hidden aspect-[4/3]"><img src="${L.esc(f.url)}" alt="${L.esc(f.alt || i.titulo)}" loading="lazy" class="w-full h-full object-cover" onerror="${FALLBACK}"></li>`).join('')}</ul>` : ''}`
       : '';
     const cuerpo = `
+  ${aviso}
   <main class="cat-${L.esc(i.categoria)}">
     <div class="max-w-7xl mx-auto px-5 sm:px-8 pt-8 lg:pt-12 pb-16">
       <nav aria-label="Ruta" class="num text-[12px] text-muted"><a href="/" class="hover:text-ink">Inicio</a> / <a href="/#catalogo" class="hover:text-ink">${L.esc(cat.plural)}</a> / <span style="color:rgb(var(--c))">${L.esc(i.ref)}</span></nav>
@@ -153,16 +164,21 @@ module.exports = async (req, res) => {
           <p class="text-muted mt-3">${L.esc(i.ubicacion)}</p>
           <div class="mt-7 pl-4" style="border-left:3px solid rgb(var(--c))">
             <p class="font-display text-4xl font-semibold leading-none">${L.mxn(i.precio_mxn)} <span class="font-sans text-sm font-medium text-muted">MXN</span></p>
-            <p class="num text-[13px] text-muted mt-2">${L.usd(i.precio_mxn)} · ${L.mxn(precioM2)}/m²${reservado ? ' · <strong style="color:rgb(var(--ember-ink))">Reservado</strong>' : ''}</p>
+            <p class="num text-[13px] text-muted mt-2">${L.usd(i.precio_mxn)} · ${L.mxn(precioM2)}/m²${reservado ? ' · <strong style="color:rgb(var(--ember-ink))">Reservado</strong>' : ''}${vendido ? ' · <strong style="color:rgb(var(--ember-ink))">Vendido</strong>' : ''}</p>
           </div>
           <dl class="grid grid-cols-3 gap-3 mt-7">
             ${[['Terreno', L.m2(i.superficie_m2), 'tide'], ['Construcción', +i.construccion_m2 > 0 ? L.m2(i.construccion_m2) : 'Lote libre', 'ember'], ['Plusvalía zona', '▲ ' + (+i.plusvalia_zona_pct) + '% est.', 'ochre']]
               .map(([k, v, c]) => `<div class="rounded-xl px-3 py-3" style="background:rgb(var(--${c}) / .11);box-shadow:inset 0 -2px 0 rgb(var(--${c}) / .85)"><dt class="text-[11px] text-muted">${k}</dt><dd class="num text-[13px] font-semibold mt-1" style="color:rgb(var(--${c}))">${L.esc(v)}</dd></div>`).join('')}
           </dl>
+          ${vendido ? `<div class="mt-8 p-5 rounded-xl" style="background:rgb(var(--ember) / .09);border-left:3px solid rgb(var(--ember))">
+            <p class="font-display text-xl font-semibold">Este inmueble ya se vendió</p>
+            <p class="text-[14px] text-muted mt-1">Si buscas algo parecido, cuéntanos qué necesitas y te avisamos cuando entre uno.</p>
+            <div class="flex flex-wrap gap-3 mt-4"><a class="btn btn-primary" href="/?agendar=">Pedir una búsqueda</a><a class="btn btn-ghost" href="/#catalogo">Ver los disponibles</a></div></div>` : `
           <div class="flex flex-wrap gap-3 mt-8">
             <a class="btn btn-primary" href="${L.esc(wa)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>
-            <a class="btn btn-ghost" href="/#/propiedad/${encodeURIComponent(i.ref)}">Agendar inspección</a>
-          </div>
+            <a class="btn btn-ghost" href="/?agendar=${encodeURIComponent(i.ref)}">Agendar inspección</a>
+            <button class="btn btn-ghost" type="button" data-imprimir>Imprimir o guardar PDF</button>
+          </div>`}
           <p class="num text-[12px] text-muted mt-6">${(+i.lat).toFixed(4)}° N · ${Math.abs(+i.lng).toFixed(4)}° O · ${dist < 1.5 ? 'en el centro' : Math.round(dist) + ' km a la Parroquia'} · <a class="underline underline-offset-4 hover:text-ink" href="${mapa}" target="_blank" rel="noopener">Ver en el mapa</a></p>
         </div>
       </div>
@@ -192,8 +208,8 @@ module.exports = async (req, res) => {
     </div>
   </main>`;
     L.enviar(res, 200, 'text/html; charset=utf-8', pagina({
-      b, titulo: `${i.titulo} · ${cat.label} en ${zona || 'San Miguel de Allende'} · VÉRTICE / SMA`, descripcion, canonical: url,
-      imagen: fotos[0] && fotos[0].url, ld, cuerpo
-    }));
+      b, titulo: `${i.titulo} · ${cat.label} en ${zona || 'San Miguel de Allende'} · VÉRTICE / SMA`, descripcion,
+      canonical: (vendido || admin) ? null : url, imagen: fotos[0] && fotos[0].url, ld, cuerpo
+    }), sinCache);
   } catch (e) { L.fallo(res, e); }
 };

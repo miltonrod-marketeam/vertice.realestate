@@ -42,6 +42,10 @@
     rancho: { label: 'Rancho y finca', corto: 'Ranchos y fincas' }
   };
   V.ESTATUS_INMUEBLE = ['publicado', 'reservado', 'borrador', 'vendido'];
+  // Un inmueble vendido sigue visible para el público 10 días (genera confianza) y después desaparece solo.
+  V.VENDIDO_DIAS = 10;
+  V.venceVendido = (i) => (i.vendidoEn ? new Date(new Date(i.vendidoEn).getTime() + V.VENDIDO_DIAS * 864e5) : null);
+  V.visiblePublico = (i) => i.estatus === 'publicado' || i.estatus === 'reservado' || (i.estatus === 'vendido' && !!V.venceVendido(i) && V.venceVendido(i) > new Date());
   V.ESTATUS_PROSPECTO = ['Nuevo contacto', 'Cita agendada', 'En negociación', 'Revisión notarial', 'Cerrado / ganado', 'En pausa'];
   V.TIPOS_INTERACCION = ['Llamada telefónica', 'Mensaje de WhatsApp', 'Visita al inmueble', 'Envío de dossier', 'Revisión notarial', 'Oferta / negociación', 'Nota interna'];
 

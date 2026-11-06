@@ -18,8 +18,9 @@ function datos() {
   return (_cfg = w.VERTICE_DATA);
 }
 
-async function sb(q) {
-  const r = await fetch(`${SB_URL}/rest/v1/${q}`, { headers: { apikey: SB_KEY, Accept: 'application/json' } });
+async function sb(q, token) {
+  // Con el token del personal (cookie de la consola) la base deja ver también vendidos vencidos y borradores
+  const r = await fetch(`${SB_URL}/rest/v1/${q}`, { headers: { apikey: SB_KEY, Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   if (!r.ok) throw new Error(`Supabase ${r.status}: ${await r.text()}`);
   return r.json();
 }
@@ -29,6 +30,22 @@ async function inmuebles() {
   l.forEach((i) => { i.fotos = (i.fotos || []).sort((a, b) => a.orden - b.orden); });
   return l;
 }
+const VENDIDO_DIAS = 10;
+const enVentana = (i) => !!i.vendido_en && new Date(i.vendido_en).getTime() + VENDIDO_DIAS * 864e5 > Date.now();
+const publico = (i) => i.estatus === 'publicado' || i.estatus === 'reservado' || (i.estatus === 'vendido' && enVentana(i));
+// Un inmueble por referencia. Con token: el personal lo ve aunque ya no sea público; si el token venció, se cae a lo público.
+async function inmueble(ref, token) {
+  const q = `inmuebles?${SELECT}&ref=eq.${encodeURIComponent(ref)}&limit=1`;
+  let l;
+  try { l = await sb(q, token); } catch (e) { if (!token) throw e; l = await sb(q); }
+  const i = l[0];
+  if (i) i.fotos = (i.fotos || []).sort((a, b) => a.orden - b.orden);
+  return i || null;
+}
+const cookie = (req, nombre) => {
+  const m = String(req.headers.cookie || '').split(/;\s*/).find((c) => c.startsWith(nombre + '='));
+  return m ? m.slice(nombre.length + 1) : '';
+};
 async function zonas() {
   const l = await sb('zonas?select=id,nombre&order=nombre');
   return Object.fromEntries(l.map((z) => [z.id, z.nombre]));
@@ -75,4 +92,4 @@ function fallo(res, e) {
   enviar(res, 503, 'text/plain; charset=utf-8', 'Servicio no disponible por el momento. Intenta en unos minutos.', 'no-store');
 }
 
-module.exports = { ROOT, PARROQUIA, datos, inmuebles, zonas, esc, base, urlInmueble, mxn, usd, m2, CAT, km, jsonld, agencia, enviar, fallo };
+module.exports = { VENDIDO_DIAS, enVentana, publico, inmueble, cookie, ROOT, PARROQUIA, datos, inmuebles, zonas, esc, base, urlInmueble, mxn, usd, m2, CAT, km, jsonld, agencia, enviar, fallo };
