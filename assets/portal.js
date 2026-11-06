@@ -423,22 +423,30 @@ ${fotos.length > 1 ? `<div class="g">${fotos.slice(1, 4).map((f) => `<img src="$
     if (!ok2) { tel.focus(); V.toast('Revisa tu teléfono'); return false; }
     return true;
   };
+  // Envía a la base y solo confirma cuando la base responde; evita doble envío
+  const enviar = async (form, datos, alTerminar) => {
+    const b = form.querySelector('[type="submit"]'); if (b.disabled) return;
+    b.disabled = true;
+    try { await V.store.addProspecto(datos); form.reset(); alTerminar(); }
+    catch (err) { console.error(err); V.toast('No se pudo enviar. Intenta de nuevo o escríbenos por WhatsApp.'); }
+    finally { b.disabled = false; }
+  };
   $('#formContacto').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!valida($('#kNombre'), $('#kTel'))) return;
     const ref = $('#kInteres').value, i = inv.find((x) => x.ref === ref);
-    V.store.addProspecto({ nombre: $('#kNombre').value.trim(), telefono: $('#kTel').value.trim(), inmuebleId: ref || null, interes: i ? '' : 'Búsqueda general',
-      origen: 'Portal web', resumen: 'Solicitud de inspección', nota: $('#kMsg').value.trim() || 'Solicitó agendar una inspección desde el portal.' });
-    e.target.reset(); mCont.close(); V.toast('Solicitud enviada. Te contactamos hoy en horario hábil.');
+    enviar(e.target, { nombre: $('#kNombre').value.trim(), telefono: $('#kTel').value.trim(), inmuebleId: ref || null, interes: i ? '' : 'Búsqueda general',
+      origen: 'Portal web', resumen: 'Solicitud de inspección', nota: $('#kMsg').value.trim() || 'Solicitó agendar una inspección desde el portal.' },
+      () => { mCont.close(); V.toast('Solicitud enviada. Te contactamos hoy en horario hábil.'); });
   });
   $('#contCerrar').addEventListener('click', () => mCont.close());
   $('#formConsigna').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!valida($('#cNombre'), $('#cTel'))) return;
-    V.store.addProspecto({ nombre: $('#cNombre').value.trim(), telefono: $('#cTel').value.trim(), origen: 'Formulario de consignación',
+    enviar(e.target, { nombre: $('#cNombre').value.trim(), telefono: $('#cTel').value.trim(), origen: 'Formulario de consignación',
       interes: `Consigna: ${$('#cTipo').value} · ${$('#cUbic').value.trim() || 's/ubicación'} · ${$('#cSup').value.trim() || 's/superficie'} m²`,
-      resumen: 'Solicitud de consignación', nota: $('#cDet').value.trim() || 'Quiere consignar un inmueble.' });
-    e.target.reset(); V.toast('Recibimos tu solicitud. Un arquitecto te contactará en menos de 24 horas hábiles.');
+      resumen: 'Solicitud de consignación', nota: $('#cDet').value.trim() || 'Quiere consignar un inmueble.' },
+      () => V.toast('Recibimos tu solicitud. Un arquitecto te contactará en menos de 24 horas hábiles.'));
   });
 
   /* ---------- Simulador ---------- */

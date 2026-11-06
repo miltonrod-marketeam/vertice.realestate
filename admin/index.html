@@ -25,6 +25,7 @@
         <span class="leading-none"><span class="font-display text-lg font-semibold block">Vértice</span><span class="text-[10px] tracking-[.16em] uppercase text-muted block mt-1">Consola</span></span>
       </a>
       <div class="flex gap-2 lg:hidden">
+        <button class="btn btn-ghost btn-sm" type="button" data-salir>Salir</button>
         <a href="../" class="icon-btn" aria-label="Ver portal" id="icoPortalM"></a>
         <button class="icon-btn" data-theme-toggle aria-label="Cambiar tema">
           <span class="icon-moon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
@@ -37,8 +38,9 @@
 
     <div class="hidden lg:flex flex-col gap-3 mt-auto">
       <div class="p-4 rounded-2xl border border-line bg-surface2/60 text-[12.5px] leading-relaxed text-muted">
-        <p class="font-semibold text-ink mb-1">Modo demo</p>Los cambios se guardan solo en este navegador. Un desarrollador conecta la base de datos y el acceso.
+        <p class="font-semibold text-ink mb-1">Base de datos conectada</p>Los cambios se guardan para todo el equipo y se ven en el portal al recargar.
       </div>
+      <button class="btn btn-ghost btn-sm w-full" type="button" data-salir>Cerrar sesión</button>
       <div class="flex gap-2">
         <a href="../" class="btn btn-ghost flex-1 btn-sm" id="lnkPortal"></a>
         <button class="icon-btn !w-9 !h-9" data-theme-toggle aria-label="Cambiar tema">
@@ -75,7 +77,7 @@
     <!-- Alta / edición -->
     <section id="sec-alta" class="hidden space-y-6" aria-labelledby="h-alta">
       <header><p class="eyebrow" id="altaEyebrow">Alta</p><h1 id="h-alta" class="font-display text-3xl sm:text-4xl font-semibold mt-2">Nuevo inmueble</h1>
-        <p class="text-sm text-muted mt-2 max-w-2xl">Las fotos se cargan por enlace en el demo. En producción se suben a almacenamiento propio.</p></header>
+        <p class="text-sm text-muted mt-2 max-w-2xl">Las fotos se comprimen y se suben al almacenamiento del sitio al guardar.</p></header>
       <form id="formInm" class="space-y-6" novalidate></form>
     </section>
 
@@ -99,8 +101,8 @@
 
     <!-- Datos -->
     <section id="sec-datos" class="hidden space-y-6" aria-labelledby="h-datos">
-      <header><p class="eyebrow">Datos</p><h1 id="h-datos" class="font-display text-3xl sm:text-4xl font-semibold mt-2">Exportar, importar y restablecer</h1>
-        <p class="text-sm text-muted mt-2 max-w-2xl">Respaldo completo en JSON. Es el mismo formato que el desarrollador usará para migrar a la base de datos (ver <span class="num">docs/esquema.sql</span>).</p></header>
+      <header><p class="eyebrow">Datos</p><h1 id="h-datos" class="font-display text-3xl sm:text-4xl font-semibold mt-2">Exportar e importar</h1>
+        <p class="text-sm text-muted mt-2 max-w-2xl">Respaldo completo en JSON. Importar reemplaza la cartera y los prospectos en la base de datos para todo el equipo.</p></header>
       <div class="card p-6 space-y-4">
         <div class="flex flex-wrap gap-3 justify-between items-center">
           <p class="num text-sm font-semibold">vertice-datos.json</p>
@@ -108,7 +110,6 @@
             <button class="btn btn-ghost btn-sm" id="btnCopiar"></button>
             <button class="btn btn-ink btn-sm" id="btnDescargar"></button>
             <label class="btn btn-ghost btn-sm cursor-pointer" id="lblImportar"><input type="file" id="fileImportar" accept="application/json,.json" class="sr-only"></label>
-            <button class="btn btn-danger btn-sm" id="btnReset">Restablecer demo</button>
           </div>
         </div>
         <textarea id="jsonOut" readonly rows="16" class="input num text-[12px] leading-relaxed" aria-label="Contenido JSON"></textarea>
@@ -143,6 +144,8 @@
 
 <script src="../data/inventario.js"></script>
 <script src="../assets/core.js"></script>
-<script src="../assets/admin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/db.js"></script>
+<script>Vertice.boot('../assets/admin.js', { admin: true });</script>
 </body>
 </html>
