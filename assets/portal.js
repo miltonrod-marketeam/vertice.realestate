@@ -49,7 +49,7 @@
         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25 pointer-events-none"></div>
         <div class="absolute top-3 left-3"><span class="chip-c">${E(V.CAT[i.categoria]?.label || i.categoria)}</span></div>
         <span class="absolute top-3 right-3 inline-flex items-center gap-1.5 text-white text-[11px] px-2 py-1 rounded-full bg-black/55">${V.icon('layers', 12)}${(i.fotos || []).length}</span>
-        ${res ? '<span class="absolute top-12 right-3 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white text-black">Reservado</span>' : ''}
+        ${res ? '<span class="absolute top-12 right-3 etq bg-white text-black">Reservado</span>' : ''}
         <div class="absolute left-0 bottom-4 pricetag">
           <div class="font-display text-[26px] font-semibold leading-none">${V.mxn(i.precioMxn)} <span class="font-sans text-[11px] font-medium opacity-70">MXN</span></div>
           <div class="num text-[11px] opacity-70 mt-1.5">${V.usd(i.precioMxn)} · ${V.mxn(V.precioM2(i))}/m²</div>
@@ -68,7 +68,7 @@
             `<div class="rounded-xl px-2 py-2.5 text-center" style="background:rgb(var(--${c}) / .11);box-shadow:inset 0 -2px 0 rgb(var(--${c}) / .85)"${k === 2 ? ' title="Estimación ilustrativa de plusvalía en la zona a 3 años"' : ''}><span class="inline-flex" style="color:rgb(var(--${c}))">${V.icon(ic, 15)}</span><dt class="text-[10.5px] text-muted mt-1 leading-none">${t}</dt><dd class="num text-[12.5px] font-semibold mt-1.5 leading-tight" style="color:rgb(var(--${c}))">${E(v)}</dd></div>`).join('')}
         </dl>
         <div class="flex items-center justify-between gap-2 pt-1">
-          <span class="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1.5 rounded-full" style="color:rgb(var(--ink));background:rgb(var(--ink) / .07)"><span style="color:rgb(var(--ember))" class="inline-flex">${V.icon('shield', 14)}</span>${E(i.estatusLegal)}</span>
+          <span class="chip-c max-w-[60%]" style="--c:var(--ink);border-left-color:rgb(var(--ember))">${E(i.estatusLegal)}</span>
           <div class="flex items-center gap-2">
             <a data-stop href="${E(V.wa(msg))}" target="_blank" rel="noopener" class="icon-btn !w-9 !h-9" aria-label="Consultar por WhatsApp" style="color:rgb(var(--tide))">${V.waIcon(17)}</a>
             <span class="btn btn-ink btn-sm">Ficha técnica <span aria-hidden="true">→</span></span>
@@ -136,8 +136,7 @@
     const key = JSON.stringify(items.map((x) => [x.n, x.txt, x.sub]));
     if (key === statsKey) return; statsKey = key;
     $('#statsRow').innerHTML = items.map((x, k) => `<div class="stat reveal d${k % 4}" style="--c:var(--${x.c})">
-      <span class="stat-ico">${V.icon(x.ico, 18)}</span>
-      <p class="fig text-[36px] sm:text-5xl leading-none mt-5" style="color:rgb(var(--c))">${x.txt ? E(x.txt) : `<span data-count="${x.n}" data-dec="${x.dec}" data-suf="${E(x.suf)}">${E(x.n.toLocaleString('es-MX', { minimumFractionDigits: x.dec, maximumFractionDigits: x.dec }) + x.suf)}</span>`}</p>
+      <p class="fig text-[36px] sm:text-5xl leading-none mt-1" style="color:rgb(var(--c))">${x.txt ? E(x.txt) : `<span data-count="${x.n}" data-dec="${x.dec}" data-suf="${E(x.suf)}">${E(x.n.toLocaleString('es-MX', { minimumFractionDigits: x.dec, maximumFractionDigits: x.dec }) + x.suf)}</span>`}</p>
       <p class="font-semibold mt-3 text-[14px]">${E(x.t)}</p><p class="text-[12.5px] text-muted mt-0.5">${E(x.sub)}</p></div>`).join('');
     countUp($('#statsRow'));
   }
@@ -197,7 +196,7 @@
     $('#tabs').innerHTML = defs.map(([k, label]) => {
       const n = k === 'todos' ? base.length : base.filter((i) => i.categoria === k).length;
       const on = st.cat === k, c = CCOL[k];
-      return `<button role="tab" aria-selected="${on}" data-tab="${k}" class="tabpill ${on ? 'on' : ''}" style="--c:var(--${c});--on:${ON[c] || '#fff'}"><i class="dot"></i>${E(label)}<span class="num text-[11px] opacity-70">${n}</span></button>`;
+      return `<button role="tab" aria-selected="${on}" data-tab="${k}" class="tabpill ${on ? 'on' : ''}" style="--c:var(--${c});--on:${ON[c] || '#fff'}">${E(label)}<span class="num text-[11px] opacity-70">${n}</span></button>`;
     }).join('');
   }
 
@@ -208,6 +207,15 @@
     'atotonilco': { c: 'ochre', ico: 'compass', txt: 'Rumbo a Dolores Hidalgo: ranchos y fincas con superficie amplia y horizonte largo.' },
     'corredor-industrial': { c: 'tide', ico: 'road', txt: 'Sobre la carretera 57: bodegas y naves con acceso para carga.' }
   };
+  // Centro de cada zona (promedio de sus inmuebles) y distancia a la Parroquia, calculados con los datos reales
+  const PARROQUIA = [20.9144, -100.7452];
+  const km = (a, b) => { const r = Math.PI / 180, dl = (b[0] - a[0]) * r, dn = (b[1] - a[1]) * r;
+    const h = Math.sin(dl / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dn / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+  const geo = (l) => {
+    if (!l.length) return '';
+    const la = l.reduce((s, i) => s + i.lat, 0) / l.length, ln = l.reduce((s, i) => s + i.lng, 0) / l.length, d = km(PARROQUIA, [la, ln]);
+    return `${la.toFixed(3)}° N  ${Math.abs(ln).toFixed(3)}° O<br>${d < 1.5 ? 'En el centro' : Math.round(d) + ' km a la Parroquia'}`;
+  };
   function zonas() {
     $('#zonasGrid').innerHTML = Object.entries(D.zonas).map(([id, nombre], k) => {
       const z = ZONA_INFO[id] || { c: 'ember', ico: 'map', txt: '' };
@@ -216,10 +224,12 @@
       return `<a href="#catalogo" data-zona="${E(id)}" class="reveal d${k} zona card glow-c group relative overflow-hidden p-6 min-h-[320px] flex flex-col ${n ? '' : 'opacity-60 pointer-events-none'}" style="--c:var(--${z.c})">
         <div class="topo zt" data-ztopo="${k}"></div>
         <span class="zona-wash"></span>
-        <div class="relative"><span class="stat-ico">${V.icon(z.ico, 18)}</span>
-          <h3 class="font-display text-2xl font-semibold mt-5 leading-tight">${E(nombre)}</h3>
+        <div class="relative">
+          <h3 class="font-display text-2xl font-semibold leading-tight pr-16">${E(nombre)}</h3>
+          ${n ? `<p class="zona-geo">${geo(l)}</p>` : ''}
           <p class="text-[14px] text-muted mt-3 leading-relaxed">${E(z.txt)}</p></div>
-        <div class="relative mt-auto pt-7 flex items-end justify-between gap-3">
+        <div class="zona-sil">${V.dib[id] ? V.dib[id]() : ''}</div>
+        <div class="relative mt-auto pt-5 flex items-end justify-between gap-3">
           <div><p class="fig text-5xl leading-none" style="color:rgb(var(--c))">${n}</p><p class="text-[12px] text-muted mt-1">${n === 1 ? 'inmueble' : 'inmuebles'}</p></div>
           <div class="text-right"><p class="num text-[13px] font-semibold">${n ? V.compact(desde) + ' MXN' : 'Próximamente'}</p><p class="text-[12px] text-muted">${n ? 'inversión desde' : 'sin piezas hoy'}</p></div>
         </div>
@@ -236,17 +246,11 @@
     ['Contrato', 'Se formaliza la promesa o el contrato de compraventa con las condiciones acordadas.', 'moss', 'doc'],
     ['Escrituración', 'Firma ante notario, pago de impuestos y derechos, e inscripción. Después, las llaves.', 'ember', 'check']
   ];
-  const FAQ = [
-    ['¿Puedo visitar un inmueble antes de decidir?', 'Sí. Agenda una inspección y un asesor te acompaña. Antes de ir recibes la ficha técnica para que la visita sea sobre decisiones y no sobre datos básicos.'],
-    ['¿Los precios son negociables?', 'Cada pieza tiene un precio de lista. Cualquier oferta se presenta al propietario por escrito y te respondemos con su decisión.'],
-    ['¿Qué documentos debo revisar antes de comprar?', 'Escritura, predial al corriente, certificado de libertad de gravamen y uso de suelo. En cada ficha indicamos cuáles existen y cuáles están en trámite; la validación final la hace tu notario.'],
-    ['¿Qué significa que un inmueble esté Reservado?', 'Que hay una oferta aceptada en proceso. Sigue visible en la colección; si te interesa, déjanos tus datos y te avisamos si vuelve a estar disponible.'],
-    ['¿Cómo publico mi propiedad?', 'Llena el formulario de consignación al final de esta página. Un asesor revisa tus datos y agenda una visita de lectura del terreno antes de publicarla.']
-  ];
+  const FAQ = D.faq || [];
   function estatico() {
     $('#rutaGrid').innerHTML = RUTA.map(([t, d, c, ico], k) => `<li class="reveal d${k % 4} ruta card glow-c relative p-6 pt-8" style="--c:var(--${c})">
-      <span class="ruta-n">${k + 1}</span><span class="stat-ico mt-1">${V.icon(ico, 18)}</span>
-      <h3 class="font-display text-xl font-semibold mt-5">${E(t)}</h3><p class="text-[14px] text-muted mt-2 leading-relaxed">${E(d)}</p></li>`).join('');
+      <span class="ruta-n">${k + 1}</span><div class="dib">${V.dib['r' + (k + 1)]()}</div>
+      <h3 class="font-display text-xl font-semibold mt-4">${E(t)}</h3><p class="text-[14px] text-muted mt-2 leading-relaxed">${E(d)}</p></li>`).join('');
     $('#faqList').innerHTML = FAQ.map(([q, a], k) => `<details class="faq card" ${k === 0 ? 'open' : ''}><summary><span>${E(q)}</span><i aria-hidden="true"></i></summary><p>${E(a)}</p></details>`).join('');
     $$('[data-ico]').forEach((el) => { el.innerHTML = V.icon(el.dataset.ico, 22); });
   }
@@ -328,6 +332,7 @@
         <a class="btn btn-ghost" target="_blank" rel="noopener" href="${E(V.wa(`Hola, me interesa agendar una inspección del inmueble ${i.ref} (${i.titulo}) en ${i.ubicacion}.`))}">${V.waIcon(16)}WhatsApp</a>
         <button class="btn btn-ghost" data-dossier>${V.icon('download', 16)}Dossier PDF</button>
         <button class="btn btn-ghost" data-copiar>${V.icon('link', 16)}Copiar enlace</button>
+        <a class="btn btn-ghost" href="/propiedad/${encodeURIComponent(i.ref)}">${V.icon('ext', 16)}Página del inmueble</a>
       </div></div>`;
   }
 
@@ -368,7 +373,7 @@
     else if (t.hasAttribute('data-agendar')) abrirContacto(cur.ref);
     else if (t.hasAttribute('data-dossier')) dossier(cur);
     else if (t.hasAttribute('data-copiar')) {
-      const url = location.origin + location.pathname + '#/propiedad/' + encodeURIComponent(cur.ref);
+      const url = location.origin + '/propiedad/' + encodeURIComponent(cur.ref);
       (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => V.toast('Enlace copiado'), () => V.toast(url));
     }
   });

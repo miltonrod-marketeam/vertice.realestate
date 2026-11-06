@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VÉRTICE / SMA · Tierra y arquitectura en San Miguel de Allende</title>
-  <meta name="description" content="Demo de portal inmobiliario curado: terrenos, casas de autor, bodegas y fincas en San Miguel de Allende y el Bajío, con ficha técnica y lectura del terreno.">
+  <meta name="description" content="Terrenos, casas de autor, bodegas y fincas en San Miguel de Allende y el Bajío, cada uno con ficha técnica: topografía, asoleamiento, servicios y situación legal.">
   <meta property="og:title" content="VÉRTICE / SMA · Tierra y arquitectura en San Miguel de Allende">
   <meta property="og:description" content="Inmuebles seleccionados por su valor espacial, con topografía, asoleamiento y situación legal a la vista.">
   <meta property="og:type" content="website">
@@ -22,7 +22,7 @@
   <!-- Aviso de demo -->
   <div class="band text-[12px] py-2 px-5">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-      <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-ember"></span>Demo de interfaz · inmuebles, personas y cifras ilustrativos</span>
+      <span class="flex items-center gap-2"><span class="etq" style="color:rgb(var(--ember));border:1px solid rgb(var(--ember)/.5)">Demo</span>Interfaz de demostración · inmuebles, personas y cifras ilustrativos</span>
       <a href="admin/" class="underline underline-offset-4 decoration-ember hover:text-ember-ink">Ver consola administrativa →</a>
     </div>
   </div>
@@ -125,22 +125,22 @@
           <div class="grid lg:grid-cols-3 gap-6">
             <article class="reveal glow-c card relative overflow-hidden p-7 pt-9" style="--c:var(--ember)">
               <span class="step-num" style="--c:var(--ember)">Paso 01</span>
-              <span class="step-dot" style="--c:var(--ember)" data-ico="sun"></span>
-              <h3 class="font-display text-2xl font-semibold mt-7">Lectura del terreno</h3>
+              <div class="metodo-dib" data-dib="m1"></div>
+              <h3 class="font-display text-2xl font-semibold mt-5">Lectura del terreno</h3>
               <p class="mt-3 text-muted leading-relaxed">Pendiente real, asoleamiento por temporada, tipo de suelo y vientos dominantes. Cada ficha resume lo que cambia el costo y el diseño de una obra, con un dictamen escrito por un arquitecto.</p>
               <div class="flex flex-wrap gap-2 mt-6"><span class="tag" style="--c:var(--ember)">Topografía</span><span class="tag" style="--c:var(--ember)">Asoleamiento</span><span class="tag" style="--c:var(--ember)">Suelo</span></div>
             </article>
             <article class="reveal d1 glow-c card relative overflow-hidden p-7 pt-9" style="--c:var(--tide)">
               <span class="step-num" style="--c:var(--tide)">Paso 02</span>
-              <span class="step-dot" style="--c:var(--tide)" data-ico="doc"></span>
-              <h3 class="font-display text-2xl font-semibold mt-7">Documentos a la vista</h3>
+              <div class="metodo-dib" data-dib="m2"></div>
+              <h3 class="font-display text-2xl font-semibold mt-5">Documentos a la vista</h3>
               <p class="mt-3 text-muted leading-relaxed">La ficha indica qué existe: escritura, predial, gravamen y uso de suelo. Lo que falta o está en trámite aparece como tal, sin maquillaje.</p>
               <div class="flex flex-wrap gap-2 mt-6"><span class="tag" style="--c:var(--tide)">Escritura</span><span class="tag" style="--c:var(--tide)">Predial</span><span class="tag" style="--c:var(--tide)">Gravamen</span></div>
             </article>
             <article class="reveal d2 glow-c card relative overflow-hidden p-7 pt-9" style="--c:var(--ochre)">
               <span class="step-num" style="--c:var(--ochre)">Paso 03</span>
-              <span class="step-dot" style="--c:var(--ochre)" data-ico="road"></span>
-              <h3 class="font-display text-2xl font-semibold mt-7">Servicios y acceso</h3>
+              <div class="metodo-dib" data-dib="m3"></div>
+              <h3 class="font-display text-2xl font-semibold mt-5">Servicios y acceso</h3>
               <p class="mt-3 text-muted leading-relaxed">Distancia a la red de CFE, fuente de agua posible, tipo de camino y tiempo al centro. Son datos que se confirman en visita y se actualizan en la ficha.</p>
               <div class="flex flex-wrap gap-2 mt-6"><span class="tag" style="--c:var(--ochre)">Luz</span><span class="tag" style="--c:var(--ochre)">Agua</span><span class="tag" style="--c:var(--ochre)">Vialidad</span></div>
             </article>
@@ -319,6 +319,7 @@
 
   <script src="data/inventario.js"></script>
   <script src="assets/core.js"></script>
+  <script src="assets/dibujos.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/db.js"></script>
   <script>Vertice.boot('assets/portal.js');</script>

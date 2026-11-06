@@ -3,4 +3,4 @@
 const fs = require('fs');
 const tailwind = {};
 new Function('tailwind', fs.readFileSync(__dirname + '/assets/tailwind-config.js', 'utf8'))(tailwind);
-module.exports = { ...tailwind.config, content: ['./index.html', './admin/index.html', './assets/*.js'] };
+module.exports = { ...tailwind.config, content: ['./portal.html', './admin/index.html', './assets/*.js', './api/*.js'] };

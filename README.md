@@ -3,7 +3,8 @@
 Demo estático de un portal de propiedades en San Miguel de Allende y su consola de administración.
 Sitio estático (sin build) conectado a Supabase para datos, acceso y fotos.
 
-- **Portal:** `/` (`index.html`)
+- **Portal:** `/` (plantilla `portal.html`, servida por `api/inicio.js` con el contenido incluido)
+- **Inmueble:** `/propiedad/REF` (`api/propiedad.js`)
 - **Consola:** `/admin/` (`admin/index.html`)
 - **Stack:** HTML + Tailwind (compilado a `assets/tailwind.css`) + JavaScript sin framework. Vercel sirve los archivos tal cual.
 
@@ -32,7 +33,14 @@ Los inmuebles, asesores y prospectos de ejemplo son ficticios. Las fotos de ejem
 ## Estructura
 
 ```
-index.html            Portal público
+portal.html           Plantilla del portal público
+api/inicio.js         Portada con catálogo, preguntas y datos estructurados en el HTML
+api/propiedad.js      Página de cada inmueble (/propiedad/REF) con datos estructurados
+api/sitemap.js        sitemap.xml desde la base
+api/robots.js         robots.txt
+api/llms.js           llms.txt (resumen para motores de IA)
+api/_lib.js           Utilidades compartidas de las funciones
+assets/dibujos.js     Dibujos técnicos y siluetas de zonas (sustituyen íconos genéricos)
 admin/index.html      Consola (inventario, prospectos, bitácora, datos)
 assets/core.js        Utilidades, tema claro/oscuro, iconos, modales
 assets/db.js          Conexión con Supabase (store, acceso, subida de fotos)
@@ -60,9 +68,20 @@ a otros asesores hay que configurar un SMTP propio (Authentication → Emails �
 3. Dominio propio (si aplica) y quitar el aviso "Demo de interfaz" del portal.
 
 **Desarrollo:**
-4. Página por propiedad con URL real (`/propiedad/REF`) y metadatos para buscadores.
-5. Captura por voz del inmueble en la consola.
-6. Captcha (Cloudflare Turnstile) si el límite de envíos no basta.
+4. Captura por voz del inmueble en la consola.
+5. Captcha (Cloudflare Turnstile) si el límite de envíos no basta.
+
+## SEO y GEO
+
+- **Páginas reales:** la portada y cada `/propiedad/REF` salen del servidor con el texto completo, así que
+  Google y los motores de IA que no ejecutan JavaScript (ChatGPT, Claude, Perplexity) leen el catálogo.
+- **Datos estructurados (schema.org):** `RealEstateListing` con `Offer` en MXN, ubicación con coordenadas,
+  características del inmueble, migas de pan, `RealEstateAgent`, `ItemList` de la colección y `FAQPage`.
+- **`/sitemap.xml`, `/robots.txt` y `/llms.txt`** se generan desde la base: un inmueble aparece al publicarlo
+  en la consola y desaparece al pasarlo a borrador o vendido.
+- Las respuestas se guardan 5 minutos en la red de Vercel para no consultar la base en cada visita.
+- La dirección del sitio se toma de la petición: sirve igual con el dominio de Vercel o con uno propio.
+- Al lanzar: dar de alta el sitio en Google Search Console y enviar `/sitemap.xml`.
 
 ## Publicar
 
@@ -72,5 +91,7 @@ a otros asesores hay que configurar un SMTP propio (Authentication → Emails �
 ## Desarrollo local
 
 ```
-npx serve .
+npm install
+npx vercel dev      # sirve el sitio con las funciones de /api
 ```
+Sin funciones, `npx serve .` y abrir `/portal.html` también funciona (sin contenido prerenderizado).

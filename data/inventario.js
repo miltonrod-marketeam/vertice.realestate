@@ -14,6 +14,15 @@ window.VERTICE_DATA = {
     version: 2
   },
 
+  /* Preguntas frecuentes: las usa el portal y las páginas para buscadores (FAQPage) */
+  faq: [
+    ['¿Puedo visitar un inmueble antes de decidir?', 'Sí. Agenda una inspección y un asesor te acompaña. Antes de ir recibes la ficha técnica para que la visita sea sobre decisiones y no sobre datos básicos.'],
+    ['¿Los precios son negociables?', 'Cada pieza tiene un precio de lista. Cualquier oferta se presenta al propietario por escrito y te respondemos con su decisión.'],
+    ['¿Qué documentos debo revisar antes de comprar?', 'Escritura, predial al corriente, certificado de libertad de gravamen y uso de suelo. En cada ficha indicamos cuáles existen y cuáles están en trámite; la validación final la hace tu notario.'],
+    ['¿Qué significa que un inmueble esté Reservado?', 'Que hay una oferta aceptada en proceso. Sigue visible en la colección; si te interesa, déjanos tus datos y te avisamos si vuelve a estar disponible.'],
+    ['¿Cómo publico mi propiedad?', 'Llena el formulario de consignación al final de esta página. Un asesor revisa tus datos y agenda una visita de lectura del terreno antes de publicarla.']
+  ],
+
   zonas: {
     'sma-centro': 'Centro Histórico SMA',
     'cruz-palmar': 'Cruz del Palmar',
