@@ -79,6 +79,12 @@ a otros asesores hay que configurar un SMTP propio (Authentication → Emails �
   características del inmueble, migas de pan, `RealEstateAgent`, `ItemList` de la colección y `FAQPage`.
 - **`/sitemap.xml`, `/robots.txt` y `/llms.txt`** se generan desde la base: un inmueble aparece al publicarlo
   en la consola y desaparece al pasarlo a borrador o vendido.
+- **Vendidos:** al marcar un inmueble como vendido, el portal lo sigue mostrando 10 días con la etiqueta
+  "Vendido" (confianza para quien visita) y después desaparece solo, sin tareas programadas: la base
+  guarda `vendido_en` y las reglas de acceso (RLS) dejan de entregarlo al público a los 10 días. La página del
+  vendido no se indexa. El personal con sesión abre siempre cualquier inmueble desde la consola
+  (`/propiedad/REF?admin=1`): la consola deja la sesión en una cookie solo para `/propiedad`, el servidor consulta
+  con ese permiso y la respuesta no se guarda en caché.
 - Las respuestas se guardan 5 minutos en la red de Vercel para no consultar la base en cada visita.
 - La dirección del sitio se toma de la petición: sirve igual con el dominio de Vercel o con uno propio.
 - Al lanzar: dar de alta el sitio en Google Search Console y enviar `/sitemap.xml`.

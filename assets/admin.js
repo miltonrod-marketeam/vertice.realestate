@@ -91,6 +91,13 @@
   }
 
   /* ---------- Cartera ---------- */
+  // Nota bajo el estatus: hasta cuándo ve el público un inmueble vendido
+  function notaVendido(i) {
+    if (i.estatus !== 'vendido') return '';
+    const v = V.venceVendido(i);
+    const txt = v && v > new Date() ? `Visible al público hasta el ${v.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}` : 'Ya no se muestra al público';
+    return `<p class="text-[11px] text-muted mt-1">${E(txt)}</p>`;
+  }
   function cartera() {
     const q = $('#qCartera').value.trim().toLowerCase(), fe = $('#fEstatusInm').value;
     const l = inv.filter((i) => (fe === 'todos' || i.estatus === fe) && (!q || (i.ref + ' ' + i.titulo + ' ' + i.ubicacion).toLowerCase().includes(q)));
@@ -103,9 +110,9 @@
         <td><span class="chip-c whitespace-nowrap">${E(V.CAT[i.categoria]?.label)}</span></td>
         <td class="whitespace-nowrap"><div class="num font-semibold">${V.mxn(i.precioMxn)}</div><div class="num text-xs text-muted">${V.mxn(V.precioM2(i))}/m²</div></td>
         <td class="num whitespace-nowrap">${V.m2(i.superficieM2)}</td>
-        <td><select class="input !py-1.5 !text-[13px] w-auto" data-estatus="${E(i.id)}" aria-label="Estatus de ${E(i.ref)}">${V.ESTATUS_INMUEBLE.map((s) => `<option value="${s}" ${i.estatus === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></td>
+        <td><select class="input !py-1.5 !text-[13px] w-auto" data-estatus="${E(i.id)}" aria-label="Estatus de ${E(i.ref)}">${V.ESTATUS_INMUEBLE.map((s) => `<option value="${s}" ${i.estatus === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>${notaVendido(i)}</td>
         <td class="text-right whitespace-nowrap"><div class="inline-flex gap-1.5">
-          <a class="btn btn-ghost btn-sm" href="../#/propiedad/${encodeURIComponent(i.ref)}" target="_blank" rel="noopener" title="Ver en el portal">${V.icon('ext', 14)}</a>
+          <a class="btn btn-ghost btn-sm" href="/propiedad/${encodeURIComponent(i.ref)}?admin=1" target="_blank" rel="noopener" title="Abrir la página del inmueble">${V.icon('ext', 14)}</a>
           <button class="btn btn-ghost btn-sm" data-editar="${E(i.id)}">${V.icon('note', 14)}Editar</button>
           <button class="btn btn-danger btn-sm" data-borrar="${E(i.id)}" aria-label="Eliminar ${E(i.ref)}">${V.icon('trash', 14)}</button></div></td></tr>`;
     }).join('') || `<tr><td colspan="8" class="text-center text-muted !py-12">No hay inmuebles con ese filtro.</td></tr>`;
@@ -275,7 +282,8 @@
       geometria: g('geometria'), normativa: g('normativa'), asoleamiento: g('asoleamiento'), horasSol: nm('horasSol') || 0, topografia: g('topografia'), suelo: g('suelo'),
       usoSuelo: g('usoSuelo'), densidad: g('densidad'), estatusLegal: g('estatusLegal'), gravamen: g('gravamen'), tiempoAcceso: g('tiempoAcceso'), vialidad: g('vialidad'),
       luz: g('luz'), agua: g('agua'), plusvaliaZonaPct: nm('plusvaliaZonaPct') || 0, etiqueta: g('etiqueta'), descripcion: g('descripcion'), dictamen: g('dictamen'),
-      fotos, creadoEn: prev?.creadoEn || new Date().toISOString().slice(0, 10)
+      fotos, creadoEn: prev?.creadoEn || new Date().toISOString().slice(0, 10),
+      vendidoEn: g('estatus') === 'vendido' ? (prev?.estatus === 'vendido' && prev.vendidoEn ? prev.vendidoEn : new Date().toISOString()) : null
     };
     if (o.destacado) inv.forEach((x) => { if (x.id !== o.id) x.destacado = false; });
     if (prev) inv[inv.indexOf(prev)] = o; else inv.unshift(o);
@@ -432,7 +440,7 @@
   });
   document.addEventListener('change', (e) => {
     const s = e.target.closest('[data-estatus]');
-    if (s) { const i = inv.find((x) => x.id === s.dataset.estatus); if (i) { i.estatus = s.value; V.store.saveInventario(inv); V.toast(`${i.ref} ahora está ${s.value}`); } }
+    if (s) { const i = inv.find((x) => x.id === s.dataset.estatus); if (i) { i.estatus = s.value; i.vendidoEn = s.value === 'vendido' ? new Date().toISOString() : null; V.store.saveInventario(inv); V.toast(s.value === 'vendido' ? `${i.ref} vendido: seguirá visible ${V.VENDIDO_DIAS} días en el portal` : `${i.ref} ahora está ${s.value}`); cartera(); } }
   });
   ['qCartera', 'fEstatusInm'].forEach((id) => $('#' + id).addEventListener('input', cartera));
   ['qPros', 'fEstPros', 'fAsesor'].forEach((id) => $('#' + id).addEventListener('input', prospectos));

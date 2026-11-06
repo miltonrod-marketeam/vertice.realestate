@@ -50,6 +50,7 @@
     TXT.forEach(([j, d]) => { i[j] = s(r[d]); });
     i.fotos = (r.fotos || []).slice().sort((a, b) => a.orden - b.orden).map((f) => ({ url: f.url, alt: s(f.alt) }));
     i.creadoEn = r.creado_en;
+    i.vendidoEn = r.vendido_en || null;
     uuidOf.set(i.id, r.id); idOf.set(r.id, i.id); verI.set(i.id, r.actualizado_en);
     return i;
   }
@@ -290,6 +291,16 @@
       });
     });
   }
+  /* La página /propiedad/REF se arma en el servidor; para que el personal pueda abrir también los inmuebles
+   * vendidos o en borrador, su sesión viaja en una cookie (solo para /propiedad, mismo sitio) y el servidor
+   * consulta con ese permiso. Si la cookie falta o vence, el servidor muestra solo lo público. */
+  function cookieSesion(session) {
+    try {
+      if (!session) { document.cookie = 'vsb=; path=/propiedad; max-age=0; SameSite=Strict; Secure'; return; }
+      const seg = Math.max(60, Math.floor(session.expires_at - Date.now() / 1000));
+      document.cookie = 'vsb=' + session.access_token + '; path=/propiedad; max-age=' + seg + '; SameSite=Strict; Secure';
+    } catch (e) { /* sin cookie solo se ve lo público */ }
+  }
   async function exigirAcceso() {
     const { data } = await sb.auth.getSession();
     if (data.session && (await esPersonal(data.session.user))) {
@@ -315,9 +326,13 @@
     try {
       if (!window.supabase) throw new Error('No cargó el cliente de Supabase');
       sb = window.supabase.createClient(SB_URL, SB_KEY);
-      if (staff) await exigirAcceso();
+      if (staff) {
+        await exigirAcceso();
+        sb.auth.onAuthStateChange((_ev, session) => cookieSesion(session));
+        cookieSesion((await sb.auth.getSession()).data.session);
+      }
       await cargar(staff);
-      document.querySelectorAll('[data-salir]').forEach((b) => b.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); }));
+      document.querySelectorAll('[data-salir]').forEach((b) => b.addEventListener('click', async () => { cookieSesion(null); await sb.auth.signOut(); location.reload(); }));
       document.querySelectorAll('[data-cambiar-pass]').forEach((b) => b.addEventListener('click', () => pantallaNuevaPassword(true)));
     } catch (e) { avisoError(e); return; }
     const t = document.createElement('script'); t.src = src; document.body.appendChild(t);

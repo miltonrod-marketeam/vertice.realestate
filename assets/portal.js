@@ -6,11 +6,15 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
   let inv = [];
-  let cur = null; // inmueble abierto en la ficha
-  let gi = 0;     // índice de foto
   const st = { cat: 'todos', zona: 'todas', rango: 'todos', q: '', orden: 'destacados', vista: 'tarjetas' };
 
-  const cargar = () => { inv = V.store.inventario().filter((i) => i.estatus === 'publicado' || i.estatus === 'reservado'); };
+  // Vendidos: se muestran 10 días desde que se marcan como vendidos y luego desaparecen solos
+  const cargar = () => { inv = V.store.inventario().filter(V.visiblePublico); };
+  const vendido = (i) => i.estatus === 'vendido';
+  const disp = () => inv.filter((i) => !vendido(i));
+  const etqEstatus = (i, cls) => vendido(i)
+    ? `<span class="${cls} etq" style="background:rgb(var(--ember));color:#fff">Vendido</span>`
+    : i.estatus === 'reservado' ? `<span class="${cls} etq bg-white text-black">Reservado</span>` : '';
 
   /* ---------- Filtro y orden ---------- */
   function coincide(i, sinCat) {
@@ -41,15 +45,15 @@
     `<img src="${E(V.safeUrl(f.url))}" alt="${E(f.alt || '')}" ${eager ? '' : 'loading="lazy"'} decoding="async" onerror="Vertice.imgFallback(this)" class="${cls}">`;
 
   function card(i, n) {
-    const f = fotoPrincipal(i), res = i.estatus === 'reservado';
+    const f = fotoPrincipal(i);
     const msg = `Hola, me interesa el inmueble ${i.ref} (${i.titulo}).`;
     return `<div class="reveal d${(n % 3) + 1}"><article class="card tilt glow-c cat-${E(i.categoria)} cursor-pointer flex flex-col h-full" data-ref="${E(i.ref)}" tabindex="0" role="button" aria-label="Abrir ficha de ${E(i.titulo)}">
       <div class="relative aspect-[4/3] bg-surface2 overflow-hidden over-photo group">
-        ${imgTag(f, 'w-full h-full object-cover transition-transform duration-700 group-hover:scale-105')}
+        ${imgTag(f, 'w-full h-full object-cover transition-transform duration-700 group-hover:scale-105' + (vendido(i) ? ' grayscale-[.7]' : ''))}
         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25 pointer-events-none"></div>
         <div class="absolute top-3 left-3"><span class="chip-c">${E(V.CAT[i.categoria]?.label || i.categoria)}</span></div>
         <span class="absolute top-3 right-3 inline-flex items-center gap-1.5 text-white text-[11px] px-2 py-1 rounded-full bg-black/55">${V.icon('layers', 12)}${(i.fotos || []).length}</span>
-        ${res ? '<span class="absolute top-12 right-3 etq bg-white text-black">Reservado</span>' : ''}
+        ${etqEstatus(i, 'absolute top-12 right-3')}
         <div class="absolute left-0 bottom-4 pricetag">
           <div class="font-display text-[26px] font-semibold leading-none">${V.mxn(i.precioMxn)} <span class="font-sans text-[11px] font-medium opacity-70">MXN</span></div>
           <div class="num text-[11px] opacity-70 mt-1.5">${V.usd(i.precioMxn)} · ${V.mxn(V.precioM2(i))}/m²</div>
@@ -81,7 +85,7 @@
   function filaLista(i) {
     return `<tr class="cursor-pointer cat-${E(i.categoria)}" data-ref="${E(i.ref)}">
       <td class="num font-semibold" style="color:rgb(var(--c))">${E(i.ref)}</td>
-      <td><div class="font-semibold">${E(i.titulo)}</div><div class="text-xs text-muted">${E(V.CAT[i.categoria]?.label)}</div></td>
+      <td><div class="font-semibold">${E(i.titulo)}${vendido(i) ? ' <span class="etq" style="background:rgb(var(--ember));color:#fff">Vendido</span>' : ''}</div><div class="text-xs text-muted">${E(V.CAT[i.categoria]?.label)}</div></td>
       <td class="text-muted whitespace-nowrap">${E(V.zona(i.zona))}</td>
       <td class="num whitespace-nowrap">${V.m2(i.superficieM2)}</td>
       <td class="num whitespace-nowrap text-muted">${E(V.construccion(i))}</td>
@@ -92,7 +96,7 @@
   }
 
   function hero() {
-    const i = inv.find((x) => x.destacado) || inv[0];
+    const dp = disp(), i = dp.find((x) => x.destacado) || dp[0];
     const box = $('#heroFeatured');
     if (!i) { box.innerHTML = ''; return; }
     const f = fotoPrincipal(i);
@@ -123,6 +127,7 @@
   /* ---------- Franja de cifras ---------- */
   let statsKey = '';
   function stats() {
+    const inv = disp();
     if (!inv.length) { $('#statsRow').innerHTML = ''; statsKey = ''; return; }
     const ha = inv.reduce((a, i) => a + i.superficieM2, 0) / 1e4;
     const ps = inv.map((i) => i.precioMxn);
@@ -191,7 +196,7 @@
   }
 
   function tabs() {
-    const base = inv.filter((i) => coincide(i, true));
+    const base = disp().filter((i) => coincide(i, true));
     const defs = [['todos', 'Todos'], ...Object.entries(V.CAT).map(([k, v]) => [k, v.corto])];
     $('#tabs').innerHTML = defs.map(([k, label]) => {
       const n = k === 'todos' ? base.length : base.filter((i) => i.categoria === k).length;
@@ -219,7 +224,7 @@
   function zonas() {
     $('#zonasGrid').innerHTML = Object.entries(D.zonas).map(([id, nombre], k) => {
       const z = ZONA_INFO[id] || { c: 'ember', ico: 'map', txt: '' };
-      const l = inv.filter((i) => i.zona === id), n = l.length;
+      const l = disp().filter((i) => i.zona === id), n = l.length;
       const desde = n ? Math.min(...l.map((i) => i.precioMxn)) : 0;
       return `<a href="#catalogo" data-zona="${E(id)}" class="reveal d${k} zona card glow-c group relative overflow-hidden p-6 min-h-[320px] flex flex-col ${n ? '' : 'opacity-60 pointer-events-none'}" style="--c:var(--${z.c})">
         <div class="topo zt" data-ztopo="${k}"></div>
@@ -256,13 +261,14 @@
   }
 
   function render() {
-    const l = ordenar(inv.filter((i) => coincide(i)));
-    const n = l.length;
+    const lo = ordenar(inv.filter((i) => coincide(i)));
+    const l = lo.filter((i) => !vendido(i)).concat(lo.filter(vendido));
+    const n = lo.filter((i) => !vendido(i)).length;
     $('#heroCount').textContent = n + (n === 1 ? ' inmueble' : ' inmuebles');
-    tabs(); catHead(l); hero(); stats(); zonas();
+    tabs(); catHead(lo.filter((i) => !vendido(i))); hero(); stats(); zonas();
     const vacio = `<div class="col-span-full card p-12 text-center"><p class="font-display text-2xl font-semibold">Ningún inmueble coincide</p><p class="text-muted mt-2 text-sm">Prueba con otra zona o rango, o cuéntanos qué buscas y lo localizamos.</p><div class="flex justify-center gap-3 mt-6"><button class="btn btn-ink" data-reset>Quitar filtros</button><button class="btn btn-ghost" data-contacto>Pedir una búsqueda</button></div></div>`;
-    $('#grid').innerHTML = n ? l.map(card).join('') : vacio;
-    $('#listaBody').innerHTML = n ? l.map(filaLista).join('') : `<tr><td colspan="9" class="text-center text-muted py-10">Sin resultados</td></tr>`;
+    $('#grid').innerHTML = l.length ? l.map(card).join('') : vacio;
+    $('#listaBody').innerHTML = l.length ? l.map(filaLista).join('') : `<tr><td colspan="9" class="text-center text-muted py-10">Sin resultados</td></tr>`;
     const lista = st.vista === 'lista';
     $('#grid').classList.toggle('hidden', lista);
     $('#listaWrap').classList.toggle('hidden', !lista);
@@ -276,148 +282,20 @@
     $('#buscar').value = st.q; $('#orden').value = st.orden;
   }
 
-  /* ---------- Ficha técnica ---------- */
-  const mFicha = V.modal($('#modalFicha'), {
-    onClose() { cur = null; if (/^#\/propiedad/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search); }
-  });
-
-  function fichaHTML(i) {
-    const fotos = (i.fotos || []).filter((f) => V.safeUrl(f.url));
-    const f0 = fotos[0] || { url: '', alt: i.titulo };
-    const res = i.estatus === 'reservado';
-    const metr = [
-      ['Inversión', V.mxn(i.precioMxn) + ' MXN', `${V.usd(i.precioMxn)} · ${V.mxn(V.precioM2(i))}/m²`, 'ember', 'coin'],
-      ['Superficie', V.m2(i.superficieM2), i.geometria, 'tide', 'ruler'],
-      ['Construcción', V.construccion(i), i.normativa, 'ochre', 'building'],
-      ['Asoleamiento', i.asoleamiento, i.horasSol > 0 ? `${i.horasSol} h de sol útil al día` : 'Sin carga solar directa', 'ember', 'sun'],
-      ['Topografía', i.topografia, i.suelo, 'moss', 'trend'],
-      ['Uso de suelo', i.usoSuelo, i.densidad, 'ochre', 'map'],
-      ['Situación legal', i.estatusLegal, i.gravamen, 'ember', 'shield'],
-      ['Conectividad', i.tiempoAcceso, i.vialidad, 'ochre', 'compass']
-    ];
-    const serv = [['bolt', 'Energía eléctrica', i.luz], ['drop', 'Agua y drenaje', i.agua], ['scale', 'Registro de propiedad', `${i.estatusLegal} · ${i.gravamen}`], ['road', 'Vialidad y acceso', `${i.vialidad} (${i.tiempoAcceso})`]];
-    return `<div class="cat-${E(i.categoria)}">
-      <div class="sticky top-0 z-10 flex items-start justify-between gap-4 p-5 sm:px-8 bg-surface/95 backdrop-blur border-b border-line">
-        <div class="min-w-0">
-          <div class="flex flex-wrap items-center gap-2"><span class="chip-c">${E(V.CAT[i.categoria]?.label)}</span><span class="num text-xs text-muted">${E(i.ref)}</span>${res ? '<span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-ink text-paper">Reservado</span>' : ''}</div>
-          <h3 id="fichaTitulo" class="font-display text-2xl sm:text-[32px] font-semibold mt-2 leading-tight">${E(i.titulo)}</h3>
-          <p class="text-sm text-muted mt-1">${E(i.ubicacion)}</p>
-        </div>
-        <button class="icon-btn shrink-0" data-close aria-label="Cerrar ficha">${V.icon('x', 18)}</button>
-      </div>
-      <div class="relative bg-surface2 aspect-[16/10] sm:aspect-[16/8] overflow-hidden over-photo" id="fGal">
-        <img id="fMain" src="${E(V.safeUrl(f0.url))}" alt="${E(f0.alt || '')}" onerror="Vertice.imgFallback(this)" class="w-full h-full object-cover transition-opacity duration-200">
-        ${fotos.length > 1 ? `<button data-prev class="icon-btn absolute left-3 top-1/2 -translate-y-1/2 !bg-black/55 !border-white/20 !text-white" aria-label="Foto anterior">${V.icon('chevL', 20)}</button>
-        <button data-next class="icon-btn absolute right-3 top-1/2 -translate-y-1/2 !bg-black/55 !border-white/20 !text-white" aria-label="Foto siguiente">${V.icon('chevR', 20)}</button>` : ''}
-        <span id="fCount" class="num absolute left-3 bottom-3 text-white text-[11px] px-2.5 py-1 rounded-full bg-black/60">1 / ${fotos.length || 1}</span>
-        <a href="${E(V.mapaUrl(i))}" target="_blank" rel="noopener" class="btn btn-primary btn-sm absolute right-3 bottom-3">${V.icon('pin', 14)}Abrir en Google Maps</a>
-      </div>
-      ${fotos.length > 1 ? `<div class="flex gap-2 p-3 sm:px-8 overflow-x-auto no-scrollbar bg-surface2/60 border-b border-line">${fotos.map((f, n) =>
-        `<button data-thumb="${n}" class="shrink-0 w-20 h-14 rounded-lg overflow-hidden ${n === 0 ? 'ring-2 ring-ember' : 'opacity-60 hover:opacity-100'}" aria-label="Ver foto ${n + 1}">${imgTag(f, 'w-full h-full object-cover')}</button>`).join('')}</div>` : ''}
-      <div class="p-5 sm:p-8 space-y-9">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-6">
-          ${metr.map(([t, v, s, c, ic]) => `<div class="pt-3" style="border-top:2px solid rgb(var(--${c}))"><p class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted font-medium"><span class="shrink-0 w-7 h-7 rounded-lg inline-flex items-center justify-center" style="background:rgb(var(--${c}) / .14);color:rgb(var(--${c}))">${V.icon(ic, 15)}</span>${E(t)}</p><p class="font-display text-[19px] font-semibold leading-snug mt-2.5">${E(v)}</p><p class="text-xs text-muted mt-1 leading-snug">${E(s)}</p></div>`).join('')}
-        </div>
-        <div class="grid lg:grid-cols-5 gap-8">
-          <div class="lg:col-span-3"><h4 class="font-display text-xl font-semibold">Memoria descriptiva</h4><p class="mt-3 text-[15px] leading-relaxed text-muted">${E(i.descripcion)}</p></div>
-          <aside class="lg:col-span-2 p-5 rounded-2xl" style="background:rgb(var(--ember) / .09);border-left:3px solid rgb(var(--ember))">
-            <p class="eyebrow">Dictamen del arquitecto</p><p class="mt-3 text-[15px] leading-relaxed italic font-display">${E(i.dictamen)}</p></aside>
-        </div>
-        <div><h4 class="font-display text-xl font-semibold">Servicios y estatus</h4>
-          <div class="grid sm:grid-cols-2 gap-3 mt-4">${serv.map(([ic, t, v]) => `<div class="flex gap-3 p-4 rounded-xl border border-line bg-surface2/40"><span class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgb(var(--c) / .14);color:rgb(var(--c))">${V.icon(ic, 18)}</span><div><p class="text-[11px] uppercase tracking-wider text-muted">${E(t)}</p><p class="text-sm font-medium mt-0.5">${E(v)}</p></div></div>`).join('')}</div>
-          <p class="text-xs text-muted mt-3">Datos referenciales del demo. En producción se confirman en visita y con la documentación.</p></div>
-      </div>
-      <div class="sticky bottom-0 flex flex-wrap gap-2.5 p-4 sm:px-8 bg-surface/95 backdrop-blur border-t border-line">
-        <button class="btn btn-primary flex-1 min-w-[180px]" data-agendar>Agendar inspección</button>
-        <a class="btn btn-ghost" target="_blank" rel="noopener" href="${E(V.wa(`Hola, me interesa agendar una inspección del inmueble ${i.ref} (${i.titulo}) en ${i.ubicacion}.`))}">${V.waIcon(16)}WhatsApp</a>
-        <button class="btn btn-ghost" data-dossier>${V.icon('download', 16)}Dossier PDF</button>
-        <button class="btn btn-ghost" data-copiar>${V.icon('link', 16)}Copiar enlace</button>
-        <a class="btn btn-ghost" href="/propiedad/${encodeURIComponent(i.ref)}">${V.icon('ext', 16)}Página del inmueble</a>
-      </div></div>`;
-  }
-
-  function setFoto(n) {
-    const fotos = (cur.fotos || []).filter((f) => V.safeUrl(f.url));
-    if (!fotos.length) return;
-    gi = (n + fotos.length) % fotos.length;
-    const img = $('#fMain'), f = fotos[gi];
-    img.style.opacity = '.3';
-    setTimeout(() => { img.src = V.safeUrl(f.url); img.alt = f.alt || ''; img.style.opacity = '1'; }, 140);
-    $('#fCount').textContent = `${gi + 1} / ${fotos.length}`;
-    $$('[data-thumb]').forEach((b) => { const on = +b.dataset.thumb === gi; b.classList.toggle('ring-2', on); b.classList.toggle('ring-ember', on); b.classList.toggle('opacity-60', !on); });
-  }
-
-  function abrir(ref, opts = {}) {
-    const i = inv.find((x) => x.ref === ref);
-    if (!i) { V.toast('Este inmueble ya no está disponible'); return; }
-    cur = i; gi = 0;
-    $('#fichaBody').innerHTML = fichaHTML(i);
-    $('#fichaBody').scrollTop = 0;
-    mFicha.open();
-    if (!opts.noPush) history.pushState(null, '', '#/propiedad/' + encodeURIComponent(ref));
-    document.title = `${i.titulo} · VÉRTICE / SMA`;
-  }
-  const titulo0 = document.title;
+  /* ---------- Ficha del inmueble ----------
+   * Cada inmueble tiene su propia página (/propiedad/REF), armada en el servidor. Desde la colección se va directo a ella. */
+  const paginaDe = (ref) => '/propiedad/' + encodeURIComponent(ref);
+  const abrir = (ref) => { location.href = paginaDe(ref); };
+  // Enlaces antiguos con #/propiedad/REF llevan a la página del inmueble
   function ruta() {
     const m = location.hash.match(/^#\/propiedad\/(.+)$/);
-    if (m) { const ref = decodeURIComponent(m[1]); if (!mFicha.isOpen || !cur || cur.ref !== ref) abrir(ref, { noPush: true }); }
-    else if (mFicha.isOpen) { mFicha.close(); document.title = titulo0; }
-  }
-
-  $('#fichaBody').addEventListener('click', (e) => {
-    const t = e.target.closest('button,a'); if (!t || !cur) return;
-    if (t.hasAttribute('data-close')) { mFicha.close(); document.title = titulo0; }
-    else if (t.hasAttribute('data-prev')) setFoto(gi - 1);
-    else if (t.hasAttribute('data-next')) setFoto(gi + 1);
-    else if (t.dataset.thumb !== undefined) setFoto(+t.dataset.thumb);
-    else if (t.hasAttribute('data-agendar')) abrirContacto(cur.ref);
-    else if (t.hasAttribute('data-dossier')) dossier(cur);
-    else if (t.hasAttribute('data-copiar')) {
-      const url = location.origin + '/propiedad/' + encodeURIComponent(cur.ref);
-      (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => V.toast('Enlace copiado'), () => V.toast(url));
-    }
-  });
-  document.addEventListener('keydown', (e) => {
-    if (!mFicha.isOpen) return;
-    if (e.key === 'ArrowRight') setFoto(gi + 1); else if (e.key === 'ArrowLeft') setFoto(gi - 1);
-  });
-
-  /* ---------- Dossier imprimible (valores escapados) ---------- */
-  function dossier(i) {
-    const w = window.open('', '_blank');
-    if (!w) { V.toast('Habilita las ventanas emergentes para generar el PDF'); return; }
-    const fotos = (i.fotos || []).filter((f) => V.safeUrl(f.url));
-    const m = [['Inversión', V.mxn(i.precioMxn) + ' MXN', V.usd(i.precioMxn) + ' · ' + V.mxn(V.precioM2(i)) + '/m²'], ['Superficie', V.m2(i.superficieM2), i.geometria], ['Construcción', V.construccion(i), i.normativa],
-      ['Asoleamiento', i.asoleamiento, i.horasSol > 0 ? i.horasSol + ' h de sol útil' : 'Sin carga solar directa'], ['Topografía', i.topografia, i.suelo], ['Uso de suelo', i.usoSuelo, i.densidad],
-      ['Situación legal', i.estatusLegal, i.gravamen], ['Conectividad', i.tiempoAcceso, i.vialidad]];
-    w.document.open();
-    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Dossier ${E(i.ref)} · ${E(i.titulo)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
-<style>@page{size:letter;margin:12mm}body{margin:0;background:#E9E5DE;font:12px/1.5 Outfit,sans-serif;color:#14110F;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.bar{position:sticky;top:0;background:#0A0D12;color:#fff;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #FF5A26}
-.bar button{font:600 12px Outfit;border:0;border-radius:8px;padding:9px 16px;cursor:pointer}.p{background:#FF5A26;color:#fff}.s{background:#1C2636;color:#ccd;margin-left:8px}
-.sheet{max-width:800px;margin:22px auto;background:#fff;padding:34px 38px;border-radius:10px}
-h1{font:600 26px Fraunces,serif;margin:0}h2{font:600 11px Outfit;letter-spacing:.12em;text-transform:uppercase;margin:18px 0 6px;border-bottom:1px solid #E0D9CE;padding-bottom:4px}
-.top{display:flex;justify-content:space-between;border-bottom:3px solid #FF5A26;padding-bottom:10px;margin-bottom:14px}.k{color:#6B645C;font-size:11px}
-.hero{width:100%;height:230px;object-fit:cover;border-radius:8px}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}.g img{width:100%;height:86px;object-fit:cover;border-radius:6px}
-.m{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.m div{border-top:2px solid #FF5A26;padding-top:6px}.m b{display:block;font:600 14px Fraunces,serif}.m small{color:#6B645C}
-.q{background:#FFF3EC;border-left:3px solid #FF5A26;padding:9px 12px;margin-top:10px;font-style:italic}.f{margin-top:18px;border-top:1px solid #E0D9CE;padding-top:8px;font-size:10px;color:#6B645C;display:flex;justify-content:space-between}
-@media print{body{background:#fff}.bar{display:none}.sheet{margin:0;padding:0;max-width:none;border-radius:0}}</style></head><body>
-<div class="bar"><b>VÉRTICE / SMA · Dossier técnico</b><span><button class="p" onclick="window.print()">Imprimir o guardar PDF</button><button class="s" onclick="window.close()">Cerrar</button></span></div>
-<div class="sheet"><div class="top"><div><h1>${E(i.titulo)}</h1><div class="k">${E(i.ubicacion)}</div></div><div style="text-align:right"><b>${E(i.ref)}</b><div class="k">${E(V.CAT[i.categoria]?.label)}</div></div></div>
-${fotos[0] ? `<img class="hero" src="${E(V.safeUrl(fotos[0].url))}" alt="">` : ''}
-${fotos.length > 1 ? `<div class="g">${fotos.slice(1, 4).map((f) => `<img src="${E(V.safeUrl(f.url))}" alt="">`).join('')}</div>` : ''}
-<div class="m">${m.map(([a, b, c]) => `<div><small>${E(a)}</small><b>${E(b)}</b><small>${E(c)}</small></div>`).join('')}</div>
-<h2>Memoria descriptiva</h2><p>${E(i.descripcion)}</p><div class="q"><b style="font-style:normal">Dictamen del arquitecto.</b> ${E(i.dictamen)}</div>
-<h2>Servicios</h2><p><b>Energía:</b> ${E(i.luz)}<br><b>Agua:</b> ${E(i.agua)}<br><b>Vialidad:</b> ${E(i.vialidad)}</p>
-<div class="f"><span>VÉRTICE / SMA · ${E(D.config.email)}</span><span>Documento ilustrativo de demo</span></div></div></body></html>`);
-    w.document.close(); w.focus();
+    if (m) location.replace(paginaDe(decodeURIComponent(m[1])));
   }
 
   /* ---------- Contacto ---------- */
   const mCont = V.modal($('#modalContacto'));
   function abrirContacto(ref) {
-    $('#kInteres').innerHTML = inv.map((i) => `<option value="${E(i.ref)}" ${i.ref === ref ? 'selected' : ''}>${E(i.ref)} · ${E(i.titulo)}</option>`).join('') + `<option value="">Búsqueda general o asesoría</option>`;
+    $('#kInteres').innerHTML = disp().map((i) => `<option value="${E(i.ref)}" ${i.ref === ref ? 'selected' : ''}>${E(i.ref)} · ${E(i.titulo)}</option>`).join('') + `<option value="">Búsqueda general o asesoría</option>`;
     if (!ref) $('#kInteres').value = '';
     mCont.open();
   }
@@ -536,4 +414,6 @@ ${fotos.length > 1 ? `<div class="g">${fotos.slice(1, 4).map((f) => `<img src="$
   V.topo($('#simTopo'), [{ x: 880, y: 120, n: 12, s: 5 }, { x: 60, y: 560, n: 9, s: 2 }]);
   cargar(); sync(); render(); simular(); V.tilt(document.body); V.reveal();
   ruta();
+  const agendar = new URLSearchParams(location.search).get('agendar');
+  if (agendar !== null) { history.replaceState(null, '', location.pathname + location.hash); abrirContacto(disp().some((i) => i.ref === agendar) ? agendar : ''); }
 })();
